@@ -1,0 +1,23 @@
+# Processing options
+processing:
+  autocontrast: true
+  high_quality: true
+
+# Feature toggles
+features:
+  color: false
+  borders: false
+  border_char: "#"
+
+# GitHub profile settings
+github:
+  width: 540
+  lock_aspect: true  # Force 1012x899 ratio
+  char_set: "reverse"  # Better for dark backgrounds
+
+# Output configuration
+output:
+  width: 360
+  char_set: "default"
+  save_to_file: true
+  filename: "silver.txt"
