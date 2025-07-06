@@ -1,4 +1,3 @@
-=======
 # ASCII Image Generator
 
 This project is a **work in progress** tool for converting images into ASCII art.
