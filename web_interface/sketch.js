@@ -27,7 +27,6 @@ class Particle {
 
     update() {
         if (mode === 'explode') {
-            // Mouse Repel
             let mouse = createVector(mouseX, mouseY);
             let dir = p5.Vector.sub(this.pos, mouse);
             let dist = dir.mag();
@@ -38,13 +37,11 @@ class Particle {
                 this.applyForce(dir);
             }
 
-            // Perlin Noise Drift (Creative Phase 4)
             let n = noise(this.pos.x * this.noiseScale, this.pos.y * this.noiseScale, frameCount * 0.01 + this.noiseOffset);
             let noiseForce = p5.Vector.fromAngle(n * TWO_PI * 2);
             noiseForce.mult(0.1);
             this.applyForce(noiseForce);
 
-            // Return to origin force (Spring-like)
             let returnForce = p5.Vector.sub(this.origin, this.pos);
             returnForce.mult(0.015);
             this.applyForce(returnForce);
@@ -54,7 +51,6 @@ class Particle {
             this.vel.mult(this.friction);
             this.acc.mult(0);
         } else {
-            // Smooth return to origin
             this.pos.lerp(this.origin, 0.15);
             this.vel.set(0, 0);
         }
@@ -67,30 +63,40 @@ class Particle {
 }
 
 function preload() {
-    // Load default image from the images directory
-    img = loadImage('../images/heart.jpg', () => {
-        processImageIntoParticles();
-    });
+    // We omit the external file fetch to bypass browser CORS restrictions for local files.
+    // Instead, we will generate a procedurally drawn heart image in setup().
 }
 
 function setup() {
     const canvas = createCanvas(windowWidth, windowHeight);
     canvas.parent('canvas-holder');
     
+    // Create a procedural heart image in memory
+    img = createGraphics(400, 400);
+    img.background(0);
+    img.fill(255, 50, 80); // Nice red
+    img.noStroke();
+    img.translate(img.width/2, img.height/2);
+    img.beginShape();
+    for (let a = 0; a < TWO_PI; a += 0.01) {
+        let r = 10;
+        let x = r * 16 * pow(sin(a), 3);
+        let y = -r * (13 * cos(a) - 5 * cos(2*a) - 2 * cos(3*a) - cos(4*a));
+        img.vertex(x, y);
+    }
+    img.endShape(CLOSE);
+    
     setupUI();
     textFont('monospace');
     textAlign(CENTER, CENTER);
+
+    // Now process the generated heart
+    processImageIntoParticles();
 }
 
 function draw() {
-    background(0, 50); // Alpha for motion trails
+    background(0, 50); 
     
-    if (particles.length === 0) {
-        fill(100);
-        textSize(16);
-        text("Upload an image to start the experience...", width/2, height/2);
-    }
-
     for (let p of particles) {
         p.update();
         p.draw();
@@ -107,28 +113,24 @@ function processImageIntoParticles() {
     
     particles = [];
     
-    // Calculate aspect ratio with font compensation (0.45)
     let imgAspect = (img.height / img.width) * 0.45;
     let windowAspect = height / width;
 
     let targetWidth, targetHeight;
     
-    // Fit image to screen while maintaining aspect ratio
     if (imgAspect > windowAspect) {
-        // Height constrained
         targetHeight = floor(height / resolution);
         targetWidth = floor(targetHeight / imgAspect);
     } else {
-        // Width constrained
         targetWidth = floor(width / resolution);
         targetHeight = floor(targetWidth * imgAspect);
     }
 
+    // Capture the generated image's pixels
     let temp = img.get();
     temp.resize(targetWidth, targetHeight);
     temp.loadPixels();
 
-    // Mapping pixels to centered canvas positions
     const renderWidth = targetWidth * resolution;
     const renderHeight = targetHeight * resolution;
     const xOff = (width - renderWidth) / 2;
@@ -144,14 +146,17 @@ function processImageIntoParticles() {
             const b = temp.pixels[index + 2];
             const brightness = (r + g + b) / 3;
 
-            const charIndex = floor(map(brightness, 0, 255, 0, CHARS.length - 1));
-            const char = CHARS[charIndex];
-            
-            const px = xOff + x * resolution + resolution/2;
-            const py = yOff + y * resolution + resolution/2;
-            
-            let c = color(r, g, b);
-            particles.push(new Particle(px, py, char, brightness, c));
+            // Only create particles for non-black pixels
+            if (brightness > 10) {
+                const charIndex = floor(map(brightness, 0, 255, 0, CHARS.length - 1));
+                const char = CHARS[charIndex];
+                
+                const px = xOff + x * resolution + resolution/2;
+                const py = yOff + y * resolution + resolution/2;
+                
+                let c = color(r, g, b);
+                particles.push(new Particle(px, py, char, brightness, c));
+            }
         }
     }
 
@@ -173,7 +178,9 @@ function setupUI() {
     document.getElementById('file-input').onchange = (e) => {
         const file = e.target.files[0];
         if (file) {
-            img = loadImage(URL.createObjectURL(file), () => {
+            // User uploads still work as they don't trigger the same CORS file:// restriction
+            loadImage(URL.createObjectURL(file), (newImg) => {
+                img = newImg;
                 processImageIntoParticles();
             });
         }
