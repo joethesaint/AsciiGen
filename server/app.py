@@ -23,7 +23,12 @@ def process_image_metadata(image_stream):
         img = Image.open(image_stream).convert('L')
         # Limit processing to a manageable detail size
         max_size = (800, 800)
-        img.thumbnail(max_size, Image.ANTIALIAS)
+        # Handle different Pillow versions for Resampling
+        resample_filter = getattr(Image, 'Resampling', Image).LANCZOS
+        if hasattr(Image, 'ANTIALIAS'):
+            resample_filter = Image.ANTIALIAS
+            
+        img.thumbnail(max_size, resample_filter)
         
         width, height = img.size
         # Detect edges to find areas of high detail

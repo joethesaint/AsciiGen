@@ -25,7 +25,7 @@ class TestIPYIntegration(unittest.TestCase):
             response = requests.get(self.BASE_URL)
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.json()['status'], 'active')
-            print("✅ Server is UP and healthy")
+            print("OK - Server is UP and healthy")
         except Exception as e:
             self.fail(f"Server is not running at {self.BASE_URL}. Start it with 'python server/app.py'")
 
@@ -38,7 +38,7 @@ class TestIPYIntegration(unittest.TestCase):
         data = response.json()
         self.assertIn('weight_map', data)
         self.assertEqual(data['width'], 50)
-        print("✅ /analyze endpoint is working perfectly")
+        print("OK - /analyze endpoint is working perfectly")
 
 if __name__ == '__main__':
     unittest.main()

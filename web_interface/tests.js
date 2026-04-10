@@ -70,8 +70,8 @@ const AsciiTests = {
     testBoundaries(particles, winW, winH) {
         console.group("Boundary Checks");
         let outOfBounds = particles.filter(p => 
-            p.origin.x < 0 || p.origin.x > winW || 
-            p.origin.y < 0 || p.origin.y > winH
+            p.ox === undefined || p.ox < 0 || p.ox > winW || 
+            p.oy === undefined || p.oy < 0 || p.oy > winH
         );
         this.assert(outOfBounds.length === 0, "No leakages outside window");
         console.groupEnd();

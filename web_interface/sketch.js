@@ -7,9 +7,10 @@ let scene, camera, renderer, points;
 let particles = [];
 let mode = 'grid';
 let interactionRange = 150;
-let resolution = 4; // Much higher density allowed in Three.js!
+let resolution = 8; 
 const CHARS = "  .·:∵∴∷•";
 let detailWeightMap = null;
+let imgLoadedObject = null;
 
 // Texture Atlas Config
 const ATLAS_SIZE = 512;
@@ -30,48 +31,70 @@ class Particle {
 }
 
 function init() {
-    scene = new THREE.Scene();
-    camera = new THREE.OrthographicCamera(
-        window.innerWidth / -2, window.innerWidth / 2,
-        window.innerHeight / 2, window.innerHeight / -2,
-        1, 1000
-    );
-    camera.position.z = 10;
+    try {
+        scene = new THREE.Scene();
+        camera = new THREE.OrthographicCamera(
+            window.innerWidth / -2, window.innerWidth / 2,
+            window.innerHeight / 2, window.innerHeight / -2,
+            0.1, 1000
+        );
+        camera.position.z = 10;
 
-    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(window.devicePixelRatio);
-    document.getElementById('canvas-holder').appendChild(renderer.domElement);
+        renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true }); // Faster sans-antialias for points
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        document.getElementById('canvas-holder').appendChild(renderer.domElement);
 
-    createTextureAtlas();
-    setupUI();
-    
-    // Heartbeat check for Python AI
-    checkBackendStatus();
-    setInterval(checkBackendStatus, 3000);
-    
-    animate();
+        createTextureAtlas();
+        setupUI();
+        
+        // Heartbeat check for Python AI
+        checkBackendStatus();
+        setInterval(checkBackendStatus, 3000);
+        
+        // Initial Cinematic Particles
+        createAmbientDust();
+        
+        animate();
+        console.log("PointGen: WebGL Engine Initialized");
+    } catch (e) {
+        console.error("Critical Engine Failure:", e);
+    }
+}
+
+function createAmbientDust() {
+    particles = [];
+    for (let i = 0; i < 5000; i++) {
+        const ci = Math.floor(Math.random() * CHARS.length);
+        const c = new THREE.Color(0.2, 0.4, 0.8);
+        let p = new Particle(
+            (Math.random() - 0.5) * window.innerWidth,
+            (Math.random() - 0.5) * window.innerHeight,
+            ci, c
+        );
+        p.ox = p.px; p.oy = p.py;
+        particles.push(p);
+    }
+    updateThreeJSPoints();
 }
 
 function checkBackendStatus() {
     fetch('http://127.0.0.1:5000/')
         .then(r => r.json())
         .then(data => {
-            if (data.status === 'active') {
-                const dot = document.getElementById('backend-status');
-                if (dot) {
-                    dot.style.backgroundColor = '#2ea043';
-                    dot.style.boxShadow = '0 0 10px #2ea043';
-                    dot.title = 'Python Intelligence: Active';
-                }
+            const dot = document.getElementById('backend-status');
+            if (dot && data.status === 'active') {
+                dot.style.backgroundColor = '#2ea043';
+                dot.style.boxShadow = '0 0 10px #2ea043';
+                dot.title = 'Python Intelligence: Active';
             }
         })
-        .catch(err => {
+        .catch(() => {
             const dot = document.getElementById('backend-status');
             if (dot) {
                 dot.style.backgroundColor = '#f85149';
                 dot.style.boxShadow = '0 0 10px #f85149';
-                dot.title = 'Python Intelligence: Disconnected';
+                dot.title = 'Python Intelligence: Offline';
             }
         });
 }
@@ -90,7 +113,7 @@ function createTextureAtlas() {
     ctx.fillRect(0, 0, ATLAS_SIZE, ATLAS_SIZE);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.font = `${CHAR_SIZE * 0.8}px monospace`;
+    ctx.font = `bold ${CHAR_SIZE * 0.8}px monospace`;
     ctx.fillStyle = 'white';
 
     for (let i = 0; i < CHARS.length; i++) {
@@ -107,13 +130,12 @@ const vertexShader = `
     attribute vec3 color;
     varying vec3 vColor;
     varying float vCharIndex;
-    uniform float atlasCols;
     
     void main() {
         vColor = color;
         vCharIndex = charIndex;
         vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-        gl_PointSize = 16.0; // Fixed size for ASCII appearance
+        gl_PointSize = 12.0 * (100.0 / length(mvPosition.xyz)); // Slight perspective size
         gl_Position = projectionMatrix * mvPosition;
     }
 `;
@@ -129,15 +151,17 @@ const fragmentShader = `
         float x = mod(vCharIndex, atlasCols) * size;
         float y = floor(vCharIndex / atlasCols) * size;
         
-        vec2 uv = vec2(x, y) + gl_PointCoord * size;
+        // Correct UV mapping for canvas-style texture atlas
+        vec2 uv = vec2(x, 1.0 - y - size) + vec2(gl_PointCoord.x, 1.0 - gl_PointCoord.y) * size;
         vec4 texColor = texture2D(atlas, uv);
         
-        if (texColor.r < 0.1) discard;
+        if (texColor.r < 0.2) discard; // Sharper threshold
         gl_FragColor = vec4(vColor * texColor.rgb, 1.0);
     }
 `;
 
 function processImage(img) {
+    const startTime = performance.now();
     particles = [];
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
@@ -160,12 +184,11 @@ function processImage(img) {
     const xOff = - (tw * resolution) / 2;
     const yOff = (th * resolution) / 2;
 
-    // Render characters, doubling density in complex structural areas if Python says so
     for (let y = 0; y < th; y++) {
         for (let x = 0; x < tw; x++) {
             const i = (x + y * tw) * 4;
             const bri = (data[i] + data[i+1] + data[i+2]) / 3;
-            if (bri > 10) {
+            if (bri > 15) {
                 const ci = Math.floor((bri / 255) * (CHARS.length - 1));
                 const c = new THREE.Color(data[i]/255, data[i+1]/255, data[i+2]/255);
                 
@@ -173,21 +196,34 @@ function processImage(img) {
                 const py = yOff - y * resolution;
                 particles.push(new Particle(px, py, ci, c));
                 
-                let isDetailArea = false;
                 if (detailWeightMap) {
                     let mapX = Math.floor(mapRange(x, 0, tw, 0, detailWeightMap.width));
                     let mapY = Math.floor(mapRange(y, 0, th, 0, detailWeightMap.height));
                     let weightIdx = (mapX + mapY * detailWeightMap.width);
-                    if (detailWeightMap.weight_map[weightIdx] > 50) isDetailArea = true;
-                }
-                
-                if (isDetailArea) {
-                    particles.push(new Particle(px + (Math.random() - 0.5) * resolution, py + (Math.random() - 0.5) * resolution, ci, c));
+                    if (detailWeightMap.weight_map[weightIdx] > 50) {
+                        particles.push(new Particle(px + (Math.random()-0.5)*2, py + (Math.random()-0.5)*2, ci, c));
+                    }
                 }
             }
         }
     }
 
+    updateThreeJSPoints();
+    
+    // TDD Diagnostic report
+    AsciiTests.run({
+        chars: CHARS,
+        imgW: img.width, imgH: img.height,
+        gridW: tw, gridH: th,
+        particleCount: particles.length,
+        particles: [], // skip full array for console perf
+        winW: window.innerWidth, winH: window.innerHeight,
+        fps: 60,
+        latency: performance.now() - startTime
+    });
+}
+
+function updateThreeJSPoints() {
     if (points) scene.remove(points);
 
     const geo = new THREE.BufferGeometry();
@@ -217,7 +253,8 @@ function processImage(img) {
         },
         vertexShader,
         fragmentShader,
-        transparent: true
+        transparent: true,
+        depthTest: false
     });
 
     points = new THREE.Points(geo, mat);
@@ -227,15 +264,15 @@ function processImage(img) {
 function animate() {
     requestAnimationFrame(animate);
     
-    if (particles.length > 0) {
+    if (particles.length > 0 && points) {
         const positions = points.geometry.attributes.position.array;
         const mx = (mouseX - window.innerWidth / 2);
         const my = -(mouseY - window.innerHeight / 2);
 
-        for (let i = 0; i < particles.length; i++) {
+        for (let i = 0, len = particles.length; i < len; i++) {
             const p = particles[i];
             
-            // Physics
+            // Fast Physics
             let dx = p.ox - p.px;
             let dy = p.oy - p.py;
             let d2 = dx*dx + dy*dy;
@@ -258,6 +295,11 @@ function animate() {
                 p.ay += (-(mdy/md)*10 - p.vy) * 2.5;
             }
 
+            if (mode === 'vortex') {
+                p.ax -= (my - p.py) * 0.02;
+                p.ay += (mx - p.px) * 0.02;
+            }
+
             p.vx += p.ax; p.vy += p.ay;
             p.px += p.vx; p.py += p.vy;
             p.ax = 0; p.ay = 0;
@@ -272,9 +314,8 @@ function animate() {
     renderer.render(scene, camera);
 }
 
-// Global Mouse tracking
+// Global Interaction tracking
 let mouseX = 0, mouseY = 0;
-let imgLoadedObject = null;
 window.addEventListener('mousemove', (e) => {
     mouseX = e.clientX;
     mouseY = e.clientY;
@@ -290,11 +331,9 @@ function setupUI() {
                 .then(r => r.json())
                 .then(data => { 
                     detailWeightMap = data; 
-                    console.log("Python Smart Intelligence mapped to image!");
-                    // Re-process to apply the detail map since image might have loaded faster
                     if (imgLoadedObject) processImage(imgLoadedObject);
                 })
-                .catch(e => console.warn("Backend unavailable. Proceeding with standard density."));
+                .catch(() => console.warn("Backend unavailable"));
 
             const reader = new FileReader();
             reader.onload = (re) => {
@@ -317,7 +356,11 @@ function setupUI() {
 
     document.getElementById('res-slider').oninput = (e) => {
         resolution = parseInt(e.target.value);
-        // Note: Re-processing on slider might be slow for massive counts
+        if (imgLoadedObject) processImage(imgLoadedObject);
+    };
+    
+    document.getElementById('flee-slider').oninput = (e) => {
+        interactionRange = parseInt(e.target.value);
     };
 }
 
@@ -330,10 +373,5 @@ window.addEventListener('resize', () => {
     renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// Polyfill frameRate for stats (placeholder)
-window.frameRate = () => 60; 
-
-// Initial Mock Tests (placeholder since p5 is gone)
-const AsciiTests = { run: () => console.log("Three.js Engine Active") };
-
+// Initialize
 init();
