@@ -2,24 +2,22 @@ let img;
 let particles = [];
 let mode = 'grid'; 
 let interactionRange = 150;
-let resolution = 8;
-const CHARS = "  .·:∵∴∷•";
-let charImages = []; 
-let detailWeightMap = null; // Data from Python Backend
+let resolution = 6;
+let detailWeightMap = null;
 
-class Particle {
-    constructor(x, y, char, charIndex, brightness, color) {
+class Dot {
+    constructor(x, y, brightness, color) {
         this.origin = createVector(x, y);
         this.pos = createVector(random(width), random(height));
         this.vel = createVector(0, 0);
         this.acc = createVector(0, 0);
-        this.charIndex = charIndex; // Index for texture lookup
         this.brightness = brightness;
         this.color = color;
+        this.size = map(brightness, 0, 255, 1, resolution * 1.5);
         
-        this.maxSpeed = 8;
-        this.maxForce = 0.5;
-        this.friction = 0.9;
+        this.maxSpeed = 10;
+        this.maxForce = 0.6;
+        this.friction = 0.85;
     }
 
     applyForce(f) {
@@ -34,18 +32,14 @@ class Particle {
         if (mode === 'grid') {
             arrive.mult(1.5);
             flee.mult(0);
-        } else if (mode === 'drift') {
+        } else {
             arrive.mult(0.5);
-            flee.mult(1.5);
-            this.applyForce(p5.Vector.random2D().mult(0.1));
-        } else if (mode === 'explode') {
-            arrive.mult(0.1);
-            flee.mult(5);
-        } else if (mode === 'vortex') {
-            arrive.mult(0.2);
-            let v = createVector(-(mouseY - this.pos.y), mouseX - this.pos.x);
-            v.setMag(1.2);
-            this.applyForce(v);
+            flee.mult(2);
+            if (mode === 'vortex') {
+                let v = createVector(-(mouseY - this.pos.y), mouseX - this.pos.x);
+                v.setMag(1.5);
+                this.applyForce(v);
+            }
         }
 
         this.applyForce(arrive);
@@ -69,7 +63,7 @@ class Particle {
             desired.setMag(this.maxSpeed);
             desired.mult(-1);
             let steer = p5.Vector.sub(desired, this.vel);
-            steer.limit(this.maxForce * 3);
+            steer.limit(this.maxForce * 2.5);
             return steer;
         }
         return createVector(0, 0);
@@ -83,9 +77,10 @@ class Particle {
     }
 
     draw() {
-        // High Speed Hack: Draw pre-rendered image instead of text
-        tint(this.color);
-        image(charImages[this.charIndex], this.pos.x, this.pos.y);
+        // Light-weight Pointillism: Simple circles instead of text
+        noStroke();
+        fill(this.color);
+        ellipse(this.pos.x, this.pos.y, this.size, this.size);
     }
 }
 
@@ -93,7 +88,7 @@ function setup() {
     const canvas = createCanvas(windowWidth, windowHeight);
     canvas.parent('canvas-holder');
     
-    // Default heart
+    // Procedural heart for startup
     img = createGraphics(400, 400);
     img.background(0);
     img.fill(255, 50, 80);
@@ -109,19 +104,17 @@ function setup() {
     img.endShape(CLOSE);
     
     setupUI();
-    imageMode(CENTER);
     processImageIntoParticles();
 }
 
 function draw() {
-    background(0, 70); 
+    background(0, 80); 
     
     for (let i = 0; i < particles.length; i++) {
         particles[i].behaviors();
         particles[i].update();
         particles[i].draw();
     }
-
     updateStats();
 }
 
@@ -139,7 +132,6 @@ function windowResized() {
 function processImageIntoParticles() {
     if (!img) return;
     
-    preRenderChars();
     particles = [];
     
     let imgAspect = img.height / img.width;
@@ -158,10 +150,8 @@ function processImageIntoParticles() {
     temp.resize(tw, th);
     temp.loadPixels();
 
-    const renderWidth = tw * resolution;
-    const renderHeight = th * resolution;
-    const xOff = (width - renderWidth) / 2;
-    const yOff = (height - renderHeight) / 2;
+    const xOff = (width - tw * resolution) / 2;
+    const yOff = (height - th * resolution) / 2;
 
     for (let y = 0; y < temp.height; y++) {
         for (let x = 0; x < temp.width; x++) {
@@ -172,11 +162,10 @@ function processImageIntoParticles() {
             const brightness = (r + g + b) / 3;
 
             if (brightness > 10) {
-                const charIdx = floor(map(brightness, 0, 255, 0, CHARS.length - 1));
                 const px = xOff + x * resolution + resolution/2;
                 const py = yOff + y * resolution + resolution/2;
                 
-                // Smart ASCII logic: check if this area has high detail
+                // Smart Detail Logic
                 let isDetailArea = false;
                 if (detailWeightMap) {
                     let mapX = floor(map(x, 0, tw, 0, detailWeightMap.width));
@@ -185,18 +174,16 @@ function processImageIntoParticles() {
                     if (detailWeightMap.weight_map[weightIdx] > 50) isDetailArea = true;
                 }
 
-                particles.push(new Particle(px, py, CHARS[charIdx], charIdx, brightness, color(r, g, b)));
-                
-                // If high detail area, add a micro-particle for sharpness
+                particles.push(new Dot(px, py, brightness, color(r, g, b)));
                 if (isDetailArea) {
-                    particles.push(new Particle(px + 2, py + 2, CHARS[charIdx], charIdx, brightness, color(r, g, b)));
+                    particles.push(new Dot(px + random(-2,2), py + random(-2,2), brightness, color(r, g, b)));
                 }
             }
         }
     }
 
     AsciiTests.run({
-        chars: CHARS,
+        chars: "DOT_MODE",
         imgW: img.width, imgH: img.height,
         gridW: tw, gridH: th,
         particleCount: particles.length,
@@ -206,39 +193,15 @@ function processImageIntoParticles() {
     });
 }
 
-function preRenderChars() {
-    charImages = [];
-    let size = resolution * 1.5;
-    for (let i = 0; i < CHARS.length; i++) {
-        let pg = createGraphics(size * 2, size * 2);
-        pg.pixelDensity(1);
-        pg.fill(255);
-        pg.scale(2); // Higher quality
-        pg.textAlign(CENTER, CENTER);
-        pg.textSize(size);
-        pg.text(CHARS[i], size/2, size/2);
-        charImages.push(pg);
-    }
-}
-
 function setupUI() {
     document.getElementById('file-input').onchange = (e) => {
         const file = e.target.files[0];
         if (file) {
-            // Intertwine Python: Send image to backend for analysis
             let formData = new FormData();
             formData.append('image', file);
-            
-            fetch('http://localhost:5000/analyze', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                detailWeightMap = data;
-                console.log("Python Intelligence Received:", data.width, "x", data.height);
-            })
-            .catch(err => console.warn("Backend analysis skipped (Service unavailable)"));
+            fetch('http://localhost:5000/analyze', { method: 'POST', body: formData })
+                .then(r => r.json()).then(data => { detailWeightMap = data; processImageIntoParticles(); })
+                .catch(e => console.warn("Backend unavailable"));
 
             loadImage(URL.createObjectURL(file), (newImg) => {
                 img = newImg;
@@ -256,12 +219,6 @@ function setupUI() {
         };
     });
 
-    document.getElementById('flee-slider').oninput = (e) => {
-        interactionRange = parseInt(e.target.value);
-    };
-
-    document.getElementById('res-slider').oninput = (e) => {
-        resolution = parseInt(e.target.value);
-        if (img) processImageIntoParticles();
-    };
+    document.getElementById('flee-slider').oninput = (e) => { interactionRange = parseInt(e.target.value); };
+    document.getElementById('res-slider').oninput = (e) => { resolution = parseInt(e.target.value); if (img) processImageIntoParticles(); };
 }
