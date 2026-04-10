@@ -10,6 +10,7 @@ The most robust and heavily configurable ASCII tool in the project suite. It lev
 
 ## Files
 - `imp_ascii.py` (Script Entry Point)
+- `generate_variants.py` (Automated script to batch generate all available charsets and features)
 - `config.yaml` (Configurations mapping)
 - `tests/` (Pytest module suite for QA verification)
 
@@ -21,6 +22,15 @@ The most robust and heavily configurable ASCII tool in the project suite. It lev
 python imp_ascii.py <image.jpg>
 ```
 Note: Depending on configuration properties inside `config.yaml`, outputs are natively printed to your console with coloring applied and safely saved in the local `outputs/` directory.
+
+### Automated Variant Generator
+
+If you wish to test or visualize all default configurations at once without repeatedly modifying `config.yaml`, a helper script is included:
+```powershell
+python generate_variants.py
+```
+**What it does:** Automatically reads `heart.jpg` from the images folder and runs several independent `smart_convert` calls using the internal engine. It safely utilizes proportional scaling logic to generate separate output directories for every major character set (`char_sets_...`) and visual configurations like borders, placing them safely inside the `examples/` directory.
+
 
 ## Character Sets
 You can completely change the visual composition of your art by altering the `char_set` property inside `config.yaml`. Supported sets include:

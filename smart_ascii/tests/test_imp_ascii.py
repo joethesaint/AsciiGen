@@ -233,3 +233,24 @@ def test_convert_for_github_no_lock(temp_image):
     finally:
         imp_ascii.config['github']['width'] = orig_width
         imp_ascii.config['github']['lock_aspect'] = orig_lock
+
+def test_smart_convert_scale(temp_image):
+    # Test that scale correctly adjusts both width and height from original image sizes.
+    # temp_image is 20x20
+    orig_aspect = imp_ascii.config['processing'].get('font_aspect', 0.5)
+    try:
+        imp_ascii.config['processing']['font_aspect'] = 0.5
+        # Scale = 2.0 -> width = 40. height = 40 * 0.5 = 20
+        art = imp_ascii.smart_convert(temp_image, scale=2.0)
+        lines = art.split('\n')
+        
+        assert len(lines) == 20
+        assert len(lines[0]) == 40
+        
+        # Scale overrides target_width
+        art2 = imp_ascii.smart_convert(temp_image, target_width=10, scale=0.5)
+        lines2 = art2.split('\n')
+        assert len(lines2) == 5 # 20 * 0.5 * 0.5
+        assert len(lines2[0]) == 10 # 20 * 0.5
+    finally:
+        imp_ascii.config['processing']['font_aspect'] = orig_aspect

@@ -22,14 +22,24 @@ ASCII_CHARS = {
     'pointism': "  .·:∵∴∷•"
 }
 
-def smart_convert(image_path, target_width, char_set='default', target_height=None):
+def smart_convert(image_path, target_width=None, char_set='default', target_height=None, scale=None):
     """Main conversion function with smart features"""
     img = Image.open(image_path)
     orig_width, orig_height = img.size
     
-    # Calculate target height maintaining aspect ratio
+    font_aspect = config['processing'].get('font_aspect', 0.5)
+    
+    if scale is not None:
+        target_width = int(orig_width * scale)
+        if target_height is None:
+            target_height = int(orig_height * scale * font_aspect)
+    elif target_height is not None and target_width is None:
+        target_width = int((orig_width / orig_height) * target_height / font_aspect)
+    elif target_width is None:
+        target_width = config['output'].get('width', 100)
+        
+    # Calculate target height maintaining aspect ratio if still None
     if target_height is None:
-        font_aspect = config['processing'].get('font_aspect', 0.5)
         target_height = int((orig_height/orig_width) * target_width * font_aspect)
     
     # Apply configured processing
