@@ -39,6 +39,16 @@ def process_image_metadata(image_stream):
         raise ValueError(f"Failed to process image: {str(e)}")
 
 
+@app.route('/')
+def index():
+    """Welcome message to confirm server is active."""
+    return jsonify({
+        "status": "active",
+        "service": "PointGen Intelligence Backend",
+        "endpoint": "/analyze (POST)"
+    })
+
+
 @app.route('/analyze', methods=['POST'])
 def analyze():
     """

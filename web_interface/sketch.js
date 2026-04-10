@@ -218,7 +218,7 @@ function setupUI() {
         if (file) {
             let formData = new FormData();
             formData.append('image', file);
-            fetch('http://localhost:5000/analyze', { method: 'POST', body: formData })
+            fetch('http://127.0.0.1:5000/analyze', { method: 'POST', body: formData })
                 .then(r => r.json()).then(data => { detailWeightMap = data; processImageIntoParticles(); })
                 .catch(e => console.warn("Backend unavailable"));
 
