@@ -3,75 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AsciiGen - Hybrid Interactive Engine</title>
+    <title>AsciiGen - Fullscreen Cinematic Engine</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <!-- Dependencies -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.1/p5.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.min.js"></script>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>Ascii<span>Gen</span> <small>Hybrid Engine</small></h1>
-            <p>Python Processing + p5.js Refinement</p>
-        </header>
+    <div id="canvas-holder"></div>
 
-        <main>
-            <div class="controls glass">
-                <div class="input-source">
-                    <button id="webcam-btn" class="primary-btn">Webcam Stream</button>
-                    <div class="upload-area" id="upload-zone">
-                        <input type="file" id="file-input" accept="image/*" hidden>
-                        <label for="file-input">
-                            <span class="icon">📁</span>
-                            <span>Upload Image</span>
-                        </label>
-                    </div>
-                </div>
+    <div class="ui-overlay">
+        <div class="header">
+            <h1>Ascii<span>Gen</span></h1>
+            <div id="status" class="status-dot disconnected"></div>
+        </div>
 
-                <div class="settings">
-                    <div class="setting-group">
-                        <label>Mode</label>
-                        <div class="mode-toggle">
-                            <button id="mode-grid" class="mode-btn active">Classic Grid</button>
-                            <button id="mode-particle" class="mode-btn">Physics Particles</button>
-                        </div>
-                    </div>
-
-                    <div class="setting-group">
-                        <label for="res-slider">Sampling Resolution</label>
-                        <input type="range" id="res-slider" min="40" max="200" value="80">
-                        <span id="res-val">80</span>
-                    </div>
-
-                    <div class="setting-group">
-                        <label for="flee-slider">Repel Force</label>
-                        <input type="range" id="flee-slider" min="0" max="200" value="100">
-                    </div>
-
-                    <div class="setting-group checkbox">
-                        <input type="checkbox" id="trail-toggle">
-                        <label for="trail-toggle">Enable Trails</label>
-                    </div>
-                </div>
-
-                <div class="status-indicator">
-                    <span id="socket-status" class="disconnected">● Server Offline</span>
-                </div>
+        <div class="actions">
+            <div class="upload-btn-wrapper">
+                <button class="btn">Choose Image</button>
+                <input type="file" id="file-input" accept="image/*" />
             </div>
+            <button id="toggle-physics" class="btn secondary">Explode Physics</button>
+        </div>
 
-            <div class="output-container glass">
-                <div id="canvas-holder"></div>
-                <div class="instructions">
-                    <p>Heavy lifting by Python, Beauty by p5.js. Move mouse to interact.</p>
-                </div>
+        <div class="controls glass">
+            <div class="control-group">
+                <label>Sensitivity</label>
+                <input type="range" id="flee-slider" min="50" max="300" value="150">
             </div>
-        </main>
-
-        <footer>
-            <p>&copy; 2026 AsciiGen Suite - Implementation Phase: Hybrid Bridge</p>
-        </footer>
+            <div class="control-group">
+                <label>Character Spacing</label>
+                <input type="range" id="res-slider" min="6" max="20" value="10">
+            </div>
+        </div>
     </div>
+
     <script src="{{ url_for('static', filename='js/sketch.js') }}"></script>
 </body>
 </html>

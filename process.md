@@ -12,15 +12,15 @@
 - [x] Set up `Flask-SocketIO` for real-time duplex communication.
 - [x] Port Python `smart_convert` logic to serve JSON data packets.
 
-### Phase 2: Python Processing (The Brain) 🟢 (In Progress)
-- [ ] Refactor `imp_ascii.py` into a server-side processor.
-- [ ] Implement image-to-grid mapping that emits arrays of brightness/char data.
-- [ ] Optimize processing loop for low-latency delivery.
+### Phase 2: High-Performance Processing 🟢 (In Progress)
+- [ ] Implement robust one-shot ASCII processing in Python.
+- [ ] Optimize JSON payload size for large fullscreen grids.
+- [ ] Remove webcam dependencies to reduce overhead.
 
-### Phase 3: p5.js Rendering (The Beauty) ⚪
-- [ ] Connect `sketch.js` to the WebSocket stream.
-- [ ] Map received brightness grids to the `Particle` class.
-- [ ] Implement "Mode A/B" toggle (Classic Grid vs. Exploding Particles).
+### Phase 3: Fullscreen Cinematic Aesthetic ⚪
+- [ ] Transition `index.html` to a minimal fullscreen layout.
+- [ ] Implement auto-scaling p5.js canvas (Window to Window).
+- [ ] Optimize Particle loops for 60fps local interaction.
 
 ### Phase 4: Interactivity & Polish ⚪
 - [ ] Add mouse-repel forces in the p5.js loop.
