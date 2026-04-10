@@ -43,6 +43,21 @@ const AsciiTests = {
         console.groupEnd();
     },
 
+    /**
+     * TDD for Backend Communication
+     */
+    async testBackendConnectivity() {
+        console.group("Backend Integration");
+        try {
+            const resp = await fetch('http://127.0.0.1:5000');
+            const data = await resp.json();
+            this.assert(data.status === 'active', "Connected to Python Intelligence Hub");
+        } catch (e) {
+            console.warn("⚠️ Python Backend Unreachable. Smart ASCII features disabled.");
+        }
+        console.groupEnd();
+    },
+
     testBoundaries(particles, winW, winH) {
         console.group("Boundary Checks");
         let outOfBounds = particles.filter(p => 
@@ -53,11 +68,12 @@ const AsciiTests = {
         console.groupEnd();
     },
 
-    run(config) {
+    async run(config) {
         console.log("%c--- RUNNING ASCII ENGINE PERFORMANCE TDD ---", "color: #58a6ff; font-weight: bold;");
         this.testCharacterMapping(config.chars);
         this.testAspectRatio(config.imgW, config.imgH, config.gridW, config.gridH);
         this.testPerformance(Math.floor(config.fps), config.particleCount);
         this.testBoundaries(config.particles, config.winW, config.winH);
+        await this.testBackendConnectivity();
     }
 };
