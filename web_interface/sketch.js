@@ -1,25 +1,24 @@
 let img;
 let particles = [];
-let mode = 'grid'; // 'grid', 'drift', 'explode', 'vortex'
+let mode = 'grid'; 
 let interactionRange = 150;
 let resolution = 8;
 const CHARS = "  .·:∵∴∷•";
+let charImages = []; // Cache for pre-rendered textures
 
 class Particle {
-    constructor(x, y, char, brightness, color) {
+    constructor(x, y, char, charIndex, brightness, color) {
         this.origin = createVector(x, y);
-        this.pos = createVector(random(width), random(height)); // Spawn randomly for "arranging" effect
+        this.pos = createVector(random(width), random(height));
         this.vel = createVector(0, 0);
         this.acc = createVector(0, 0);
-        this.char = char;
+        this.charIndex = charIndex; // Index for texture lookup
         this.brightness = brightness;
         this.color = color;
         
         this.maxSpeed = 8;
         this.maxForce = 0.5;
         this.friction = 0.9;
-        this.noiseScale = 0.01;
-        this.noiseOffset = random(1000);
     }
 
     applyForce(f) {
@@ -33,18 +32,18 @@ class Particle {
 
         if (mode === 'grid') {
             arrive.mult(1.5);
-            flee.mult(0); // Passive grid
+            flee.mult(0);
         } else if (mode === 'drift') {
             arrive.mult(0.5);
-            flee.mult(1);
-            let drift = this.getDrift();
-            this.applyForce(drift);
+            flee.mult(1.5);
+            this.applyForce(p5.Vector.random2D().mult(0.1));
         } else if (mode === 'explode') {
             arrive.mult(0.1);
             flee.mult(5);
         } else if (mode === 'vortex') {
             arrive.mult(0.2);
-            let v = this.getVortex(mouse);
+            let v = createVector(-(mouseY - this.pos.y), mouseX - this.pos.x);
+            v.setMag(1.2);
             this.applyForce(v);
         }
 
@@ -55,10 +54,7 @@ class Particle {
     arrive(target) {
         let desired = p5.Vector.sub(target, this.pos);
         let d = desired.mag();
-        let speed = this.maxSpeed;
-        if (d < 100) {
-            speed = map(d, 0, 100, 0, this.maxSpeed);
-        }
+        let speed = (d < 100) ? map(d, 0, 100, 0, this.maxSpeed) : this.maxSpeed;
         desired.setMag(speed);
         let steer = p5.Vector.sub(desired, this.vel);
         steer.limit(this.maxForce);
@@ -72,27 +68,8 @@ class Particle {
             desired.setMag(this.maxSpeed);
             desired.mult(-1);
             let steer = p5.Vector.sub(desired, this.vel);
-            steer.limit(this.maxForce * 2);
+            steer.limit(this.maxForce * 3);
             return steer;
-        } else {
-            return createVector(0, 0);
-        }
-    }
-
-    getDrift() {
-        let n = noise(this.pos.x * this.noiseScale, this.pos.y * this.noiseScale, frameCount * 0.01 + this.noiseOffset);
-        let f = p5.Vector.fromAngle(n * TWO_PI * 4);
-        f.mult(0.2);
-        return f;
-    }
-
-    getVortex(target) {
-        let dir = p5.Vector.sub(target, this.pos);
-        let d = dir.mag();
-        if (d < 300) {
-            let v = createVector(-dir.y, dir.x); // Perpendicular
-            v.setMag(map(d, 0, 300, 5, 1));
-            return v;
         }
         return createVector(0, 0);
     }
@@ -105,23 +82,22 @@ class Particle {
     }
 
     draw() {
-        fill(this.color);
-        text(this.char, this.pos.x, this.pos.y);
+        // High Speed Hack: Draw pre-rendered image instead of text
+        tint(this.color);
+        image(charImages[this.charIndex], this.pos.x, this.pos.y);
     }
 }
-
-function preload() {}
 
 function setup() {
     const canvas = createCanvas(windowWidth, windowHeight);
     canvas.parent('canvas-holder');
     
-    // Default procedural heart
+    // Default heart
     img = createGraphics(400, 400);
     img.background(0);
     img.fill(255, 50, 80);
     img.noStroke();
-    img.translate(img.width/2, img.height/2);
+    img.translate(200, 200);
     img.beginShape();
     for (let a = 0; a < TWO_PI; a += 0.01) {
         let r = 10;
@@ -132,18 +108,25 @@ function setup() {
     img.endShape(CLOSE);
     
     setupUI();
-    textFont('monospace');
-    textAlign(CENTER, CENTER);
+    imageMode(CENTER);
     processImageIntoParticles();
 }
 
 function draw() {
     background(0, 70); 
     
-    for (let p of particles) {
-        p.behaviors();
-        p.update();
-        p.draw();
+    for (let i = 0; i < particles.length; i++) {
+        particles[i].behaviors();
+        particles[i].update();
+        particles[i].draw();
+    }
+
+    updateStats();
+}
+
+function updateStats() {
+    if (frameCount % 30 === 0) {
+        document.getElementById('fps-counter').innerText = `${floor(frameRate())} FPS`;
     }
 }
 
@@ -155,32 +138,29 @@ function windowResized() {
 function processImageIntoParticles() {
     if (!img) return;
     
+    preRenderChars();
     particles = [];
     
-    // FIX STRETCHING: Use pure image aspect ratio for grid spacing
     let imgAspect = img.height / img.width;
     let windowAspect = height / width;
 
-    let targetWidth, targetHeight;
-    
+    let tw, th;
     if (imgAspect > windowAspect) {
-        targetHeight = floor(height / resolution);
-        targetWidth = floor(targetHeight / imgAspect);
+        th = floor(height / resolution);
+        tw = floor(th / imgAspect);
     } else {
-        targetWidth = floor(width / resolution);
-        targetHeight = floor(targetWidth * imgAspect);
+        tw = floor(width / resolution);
+        th = floor(tw * imgAspect);
     }
 
     let temp = img.get();
-    temp.resize(targetWidth, targetHeight);
+    temp.resize(tw, th);
     temp.loadPixels();
 
-    const renderWidth = targetWidth * resolution;
-    const renderHeight = targetHeight * resolution;
+    const renderWidth = tw * resolution;
+    const renderHeight = th * resolution;
     const xOff = (width - renderWidth) / 2;
     const yOff = (height - renderHeight) / 2;
-
-    textSize(resolution * 1.5);
 
     for (let y = 0; y < temp.height; y++) {
         for (let x = 0; x < temp.width; x++) {
@@ -191,28 +171,38 @@ function processImageIntoParticles() {
             const brightness = (r + g + b) / 3;
 
             if (brightness > 10) {
-                const charIndex = floor(map(brightness, 0, 255, 0, CHARS.length - 1));
-                const char = CHARS[charIndex];
+                const charIdx = floor(map(brightness, 0, 255, 0, CHARS.length - 1));
                 const px = xOff + x * resolution + resolution/2;
                 const py = yOff + y * resolution + resolution/2;
-                let c = color(r, g, b);
-                particles.push(new Particle(px, py, char, brightness, c));
+                particles.push(new Particle(px, py, CHARS[charIdx], charIdx, brightness, color(r, g, b)));
             }
         }
     }
 
     AsciiTests.run({
         chars: CHARS,
-        imgW: img.width,
-        imgH: img.height,
-        gridW: targetWidth,
-        gridH: targetHeight,
-        fontComp: 1.0, // Switched to 1.0 to prioritize visual image integrity over char-height compensation
+        imgW: img.width, imgH: img.height,
+        gridW: tw, gridH: th,
         particleCount: particles.length,
         particles: particles,
-        winW: width,
-        winH: height
+        winW: width, winH: height,
+        fps: frameRate()
     });
+}
+
+function preRenderChars() {
+    charImages = [];
+    let size = resolution * 1.5;
+    for (let i = 0; i < CHARS.length; i++) {
+        let pg = createGraphics(size * 2, size * 2);
+        pg.pixelDensity(1);
+        pg.fill(255);
+        pg.scale(2); // Higher quality
+        pg.textAlign(CENTER, CENTER);
+        pg.textSize(size);
+        pg.text(CHARS[i], size/2, size/2);
+        charImages.push(pg);
+    }
 }
 
 function setupUI() {
@@ -226,9 +216,14 @@ function setupUI() {
         }
     };
 
-    document.getElementById('physics-mode').onchange = (e) => {
-        mode = e.target.value;
-    };
+    const modeBtns = document.querySelectorAll('.mode-btn');
+    modeBtns.forEach(btn => {
+        btn.onclick = () => {
+            mode = btn.getAttribute('data-mode');
+            modeBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        };
+    });
 
     document.getElementById('flee-slider').oninput = (e) => {
         interactionRange = parseInt(e.target.value);

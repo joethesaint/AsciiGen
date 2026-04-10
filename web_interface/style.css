@@ -61,20 +61,47 @@ header p { color: rgba(255,255,255,0.4); font-size: 0.9rem; font-weight: 500; }
     backdrop-filter: blur(12px);
     border: 1px solid var(--glass-border);
     border-radius: 24px;
-    padding: 1.5rem 2rem;
+    padding: 1rem 1.5rem;
 }
 
 .controls {
     display: flex;
     align-items: center;
     gap: 3rem;
-    max-width: 900px;
+    max-width: 1100px;
     align-self: flex-start;
 }
 
 .actions {
     display: flex;
-    gap: 1rem;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.mode-selector {
+    display: flex;
+    background: rgba(0,0,0,0.3);
+    padding: 4px;
+    border-radius: 50px;
+    border: 1px solid var(--glass-border);
+}
+
+.mode-btn {
+    background: transparent;
+    border: none;
+    color: rgba(255,255,255,0.5);
+    padding: 0.6rem 1.4rem;
+    border-radius: 40px;
+    font-weight: 700;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: 0.3s all ease;
+}
+
+.mode-btn.active {
+    background: var(--accent-color);
+    color: white;
+    box-shadow: 0 5px 15px rgba(88, 166, 255, 0.3);
 }
 
 .btn {
@@ -90,17 +117,17 @@ header p { color: rgba(255,255,255,0.4); font-size: 0.9rem; font-weight: 500; }
 }
 
 .btn:hover {
-    transform: scale(1.05);
+    transform: translateY(-2px);
     box-shadow: 0 5px 20px rgba(88, 166, 255, 0.4);
 }
 
-.btn.secondary {
-    background: rgba(255,255,255,0.1);
-    border: 1px solid var(--glass-border);
-}
-
-.btn.secondary:hover {
-    background: rgba(255,255,255,0.2);
+.stats {
+    padding: 0.6rem 1rem;
+    border-radius: 40px;
+    font-family: monospace;
+    font-size: 0.75rem;
+    color: var(--accent-color);
+    letter-spacing: 1px;
 }
 
 .upload-btn-wrapper {
@@ -128,11 +155,11 @@ header p { color: rgba(255,255,255,0.4); font-size: 0.9rem; font-weight: 500; }
 
 .control-item label {
     display: block;
-    font-size: 0.65rem;
+    font-size: 0.6rem;
     text-transform: uppercase;
     letter-spacing: 1.5px;
-    margin-bottom: 0.6rem;
-    color: rgba(255,255,255,0.4);
+    margin-bottom: 0.5rem;
+    color: rgba(255,255,255,0.3);
     font-weight: 800;
 }
 

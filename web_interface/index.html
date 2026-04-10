@@ -22,13 +22,14 @@
                     <button class="btn">Choose Image</button>
                     <input type="file" id="file-input" accept="image/*" />
                 </div>
-                <div class="select-wrapper">
-                    <select id="physics-mode" class="btn secondary">
-                        <option value="grid">Locked Grid</option>
-                        <option value="drift">Organic Drift</option>
-                        <option value="explode">Explode Mode</option>
-                        <option value="vortex">Vortex Swarm</option>
-                    </select>
+                <div class="mode-selector" id="physics-modes">
+                    <button class="mode-btn active" data-mode="grid">Origin</button>
+                    <button class="mode-btn" data-mode="drift">Drift</button>
+                    <button class="mode-btn" data-mode="explode">Explode</button>
+                    <button class="mode-btn" data-mode="vortex">Vortex</button>
+                </div>
+                <div class="stats glass">
+                    <span id="fps-counter">60 FPS</span>
                 </div>
             </div>
 
