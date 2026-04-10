@@ -53,8 +53,8 @@ def test_smart_convert(temp_image):
     lines = art.split('\n')
     assert len(lines) > 0
     # Original image is 20x20. Target width 10.
-    # Height calculation: int((20/20) * 10 * 0.5) = 5 lines.
-    assert len(lines) == 5
+    # Height calculation: int((20/20) * 10 * 1.0) = 10 lines.
+    assert len(lines) == 10
     # Width calculation: lines should be 10 characters wide
     assert len(lines[0]) == 10
 
@@ -158,7 +158,7 @@ def test_smart_convert_rgb_bug_and_configs(temp_image):
         
         assert isinstance(art, str)
         lines = art.split('\n')
-        assert len(lines) == 5
+        assert len(lines) == 10
         assert len(lines[0]) == 10
         
         # Test with detailed char set
@@ -192,6 +192,23 @@ def test_all_char_sets(temp_image):
         elif cs == 'detailed':
             # white = 255 -> index len-1 -> "$"
             assert "$" in art
+
+def test_aspect_ratio_exact_scaling(temp_image):
+    # temp_image is dynamically built as 100x100.
+    # By strictly providing 'font_aspect' sizing rule to 1.0 instead of 0.5,
+    # requested target_width=50 must map cleanly to 50 height, not 25.
+    
+    orig_aspect = imp_ascii.config['processing'].get('font_aspect', 0.5)
+    try:
+        imp_ascii.config['processing']['font_aspect'] = 1.0
+        art = imp_ascii.smart_convert(temp_image, target_width=50)
+        
+        lines = art.split('\n')
+        # TDD Check: We expect EXACT width * 1 substitution since image is square
+        assert len(lines) == 50, f"Expected exactly 50 height, got {len(lines)} lines"
+        assert len(lines[0]) == 50, f"Expected exactly 50 width, got {len(lines[0])} dimensions"
+    finally:
+        imp_ascii.config['processing']['font_aspect'] = orig_aspect
 
 
 def test_convert_for_github_no_lock(temp_image):

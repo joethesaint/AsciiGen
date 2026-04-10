@@ -29,7 +29,8 @@ def smart_convert(image_path, target_width, char_set='default', target_height=No
     
     # Calculate target height maintaining aspect ratio
     if target_height is None:
-        target_height = int((orig_height/orig_width) * target_width * 0.5)
+        font_aspect = config['processing'].get('font_aspect', 0.5)
+        target_height = int((orig_height/orig_width) * target_width * font_aspect)
     
     # Apply configured processing
     if config['processing']['autocontrast']:
