@@ -2,7 +2,7 @@
 processing:
   autocontrast: false
   high_quality: false
-  font_aspect: 1.0 # Standard pixel sizing constraint without visual correction
+  font_aspect: 0.45 # Visually compensates for terminal text being twice as tall as it is wide
 
 # Feature toggles
 features:
