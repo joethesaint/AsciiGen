@@ -3,7 +3,7 @@ let particles = [];
 let mode = 'grid'; 
 let interactionRange = 150;
 let resolution = 8;
-const CHARS = "  .·:∵∴∷•"; // The user's specific pointism set
+const CHARS = "  .·:∵∴∷•"; 
 let charImages = []; 
 let detailWeightMap = null;
 
@@ -79,8 +79,6 @@ class Particle {
     }
 
     draw() {
-        // High Speed Hack: Draw pre-rendered texture instead of raw text()
-        // Using tint() to colorize the grayscale textures
         tint(this.color);
         image(charImages[this.charIndex], this.pos.x, this.pos.y);
     }
@@ -90,34 +88,32 @@ function setup() {
     const canvas = createCanvas(windowWidth, windowHeight);
     canvas.parent('canvas-holder');
     
-    // Procedural heart for startup
-    img = createGraphics(400, 400);
-    img.background(0);
-    img.fill(255); // Use white for the mask
-    img.noStroke();
-    img.translate(200, 200);
-    img.beginShape();
-    for (let a = 0; a < TWO_PI; a += 0.01) {
-        let r = 10;
-        let x = r * 16 * pow(sin(a), 3);
-        let y = -r * (13 * cos(a) - 5 * cos(2*a) - 2 * cos(3*a) - cos(4*a));
-        img.vertex(x, y);
-    }
-    img.endShape(CLOSE);
+    // Default image is now empty to save compute on startup.
+    // The engine waits for a user upload.
+    img = null; 
     
     setupUI();
     imageMode(CENTER);
-    processImageIntoParticles();
 }
 
 function draw() {
-    background(0); // NO TRAILS - Clear background completely each frame
+    background(0); 
     
-    for (let i = 0; i < particles.length; i++) {
-        particles[i].behaviors();
-        particles[i].update();
-        particles[i].draw();
+    if (particles.length > 0) {
+        for (let i = 0; i < particles.length; i++) {
+            particles[i].behaviors();
+            particles[i].update();
+            particles[i].draw();
+        }
+    } else {
+        // Simple landing state
+        textAlign(CENTER, CENTER);
+        fill(100);
+        noStroke();
+        textSize(16);
+        text("Choose an image to begin the experience", width/2, height/2);
     }
+    
     updateStats();
 }
 
@@ -184,7 +180,6 @@ function processImageIntoParticles() {
                 const px = xOff + x * resolution + resolution/2;
                 const py = yOff + y * resolution + resolution/2;
                 
-                // Smart Detail Logic from Python Backend
                 let isDetailArea = false;
                 if (detailWeightMap) {
                     let mapX = floor(map(x, 0, tw, 0, detailWeightMap.width));
@@ -219,7 +214,7 @@ function setupUI() {
             let formData = new FormData();
             formData.append('image', file);
             fetch('http://127.0.0.1:5000/analyze', { method: 'POST', body: formData })
-                .then(r => r.json()).then(data => { detailWeightMap = data; processImageIntoParticles(); })
+                .then(r => response = r.json()).then(data => { detailWeightMap = data; processImageIntoParticles(); })
                 .catch(e => console.warn("Backend unavailable"));
 
             loadImage(URL.createObjectURL(file), (newImg) => {
