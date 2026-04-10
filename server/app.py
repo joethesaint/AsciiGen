@@ -5,12 +5,18 @@ Follows PEP8 and the Zen of Python.
 """
 
 import io
+import base64
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from PIL import Image, ImageFilter
 
-app = Flask(__name__)
+import os
+app = Flask(__name__, static_folder='../web_interface', static_url_path='/')
 CORS(app)
+
+@app.route('/')
+def index():
+    return app.send_static_file('index.html')
 
 
 def process_image_metadata(image_stream):
@@ -73,6 +79,63 @@ def analyze():
         return jsonify({"error": str(e)}), 500
 
 
-if __name__ == '__main__':
+@app.route('/sdf', methods=['GET'])
+def get_sdf():
+    """
+    Returns signed distance field coordinates for 3D morph targets.
+    Generates a 3D sphere point cloud.
+    """
+    import math
+    import random
+    points = []
+    count = 10000
+    radius = 250
+    for _ in range(count):
+        theta = random.uniform(0, 2 * math.pi)
+        phi = math.acos(random.uniform(-1, 1))
+        x = radius * math.sin(phi) * math.cos(theta)
+        y = radius * math.sin(phi) * math.sin(theta)
+        z = radius * math.cos(phi)
+        points.append({"x": x, "y": y, "z": z, "bri": random.randint(150, 255)})
+    
+    return jsonify({"points": points, "count": count})
+
+
+@app.route('/depth', methods=['POST'])
+def generate_depth():
+    """
+    Simulates AI Depth extraction.
+    In a production environment, this would use MiDaS or Depth-Anything.
+    Here we generate a high-contrast grayscale relief map.
+    """
+    if 'image' not in request.files:
+        return jsonify({"error": "No image uploaded"}), 400
+    
+    image_file = request.files['image']
+    try:
+        img = Image.open(image_file.stream).convert('L')
+        # Boost contrast for meaningful displacement
+        from PIL import ImageEnhance
+        enhancer = ImageEnhance.Contrast(img)
+        img = enhancer.enhance(2.0)
+        
+        # Save to base64
+        buffered = io.BytesIO()
+        img.save(buffered, format="JPEG")
+        img_str = base64.b64encode(buffered.getvalue()).decode()
+        
+        return jsonify({
+            "depth_map": img_str,
+            "width": img.width,
+            "height": img.height
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/depth_mock_sim', methods=['GET'])
+def depth_mock_sim():
+    """Returns a pre-calculated mock depth map for the autoload feature."""
+    return jsonify({"depth_map": None, "status": "simulated"})
     # Flask default server for development
     app.run(debug=True, port=5000)
