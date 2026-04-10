@@ -90,19 +90,34 @@ function processImageIntoParticles() {
     
     particles = [];
     
-    // We want the resolution to be based on the window width
-    let targetWidth = floor(width / resolution);
-    let aspectRatio = img.height / img.width;
-    let targetHeight = floor(targetWidth * aspectRatio * 0.45);
+    // Calculate aspect ratio with font compensation (0.45)
+    let imgAspect = (img.height / img.width) * 0.45;
+    let windowAspect = height / width;
+
+    let targetWidth, targetHeight;
+    
+    // Fit image to screen while maintaining aspect ratio
+    if (imgAspect > windowAspect) {
+        // Height constrained
+        targetHeight = floor(height / resolution);
+        targetWidth = floor(targetHeight / imgAspect);
+    } else {
+        // Width constrained
+        targetWidth = floor(width / resolution);
+        targetHeight = floor(targetWidth * imgAspect);
+    }
 
     let temp = img.get();
     temp.resize(targetWidth, targetHeight);
     temp.loadPixels();
 
-    const cellW = width / targetWidth;
-    const cellH = height / targetHeight;
-    const fontSize = cellW * 1.5;
-    textSize(fontSize);
+    // Mapping pixels to centered canvas positions
+    const renderWidth = targetWidth * resolution;
+    const renderHeight = targetHeight * resolution;
+    const xOff = (width - renderWidth) / 2;
+    const yOff = (height - renderHeight) / 2;
+
+    textSize(resolution * 1.2);
 
     for (let y = 0; y < temp.height; y++) {
         for (let x = 0; x < temp.width; x++) {
@@ -115,11 +130,31 @@ function processImageIntoParticles() {
             const charIndex = floor(map(brightness, 0, 255, 0, CHARS.length - 1));
             const char = CHARS[charIndex];
             
-            const px = x * cellW + cellW/2;
-            const py = y * cellH + cellH/2;
+            const px = xOff + x * resolution + resolution/2;
+            const py = yOff + y * resolution + resolution/2;
             
             particles.push(new Particle(px, py, char, brightness));
         }
+    }
+
+    runInternalTests(targetWidth, targetHeight, imgAspect);
+}
+
+function runInternalTests(tw, th, aspect) {
+    console.log("--- Internal Logic Test ---");
+    console.log(`Target Grid: ${tw}x${th}`);
+    let calcAspect = th / tw;
+    let diff = abs(calcAspect - aspect);
+    if (diff < 0.1) {
+        console.log("✅ Aspect Ratio Check Passed");
+    } else {
+        console.warn(`❌ Aspect Ratio Mismatch: Expected ${aspect}, Got ${calcAspect}`);
+    }
+    console.log(`Particle Count: ${particles.length}`);
+    if (particles.length === tw * th) {
+        console.log("✅ Particle Density Verified");
+    } else {
+        console.warn("❌ Particle Count Mismatch");
     }
 }
 
