@@ -1,22 +1,22 @@
-# ASCII Art & Kinetic Pointillism Suite
+# ASCII Art & Volumetric Pointillism Suite
 
-A high-performance creative coding suite that transforms images into structured ASCII and dynamic pointillism. Featuring a GPU-accelerated web engine and intelligent Python backend assistance.
+A high-performance creative coding suite that transforms images into structured ASCII and dynamic 3D pointillism. Featuring a GPU-accelerated orbital engine and autonomous Python intelligence.
 
-## 🚀 Flagship: PointGen (The Web Experience)
-Located in [`web_interface/`](./web_interface/), PointGen is a high-speed Kinetic Pointillism engine.
-- **GPU Acceleration**: Built with Three.js (WebGL) to handle hundreds of thousands of particles at 60 FPS.
-- **Intelligent Detail**: Intertwines with a Python Flask backend to perform edge-detection and structural analysis, doubling particle density in areas of high visual complexity.
-- **Interactive Modes**: Includes "Flee", "Vortex", "Drift", and "Explode" physics modes for real-time manipulation.
-- **Deep Color Engine**: Custom GLSL shaders with perceptual luminance math, saturation boosting, and alpha-masking for vibrant, punchy color reproduction.
+## 🌌 Flagship: PointGen (Experimental 3D)
+Located in [`web_interface/`](./web_interface/), PointGen is now a **Volumetric Point Cloud** engine.
+- **True 3D Space**: Individual ASCII characters (dots, fullstops) exist in a 3D volume.
+- **Orbital Controls**: Full 3D camera navigation (Drag to Rotate, Scroll to Zoom).
+- **Autonomous Sideloading**: Automatically initializes with default assets for a "stress-free" startup.
+- **Liquid Physics**: Features a "Liquid Poke" effect where the 3D surface physically reacts to your mouse cursor.
+- **Ultra-Vibrant Shader**: Custom GLSL pipeline with 2.5x color overdrive and 100% opacity for cinematic clarity.
 
 ## 🛠 Project Modules
 The project is structured into specialized modules:
 
-- **[`web_interface/`](./web_interface/)**: The Three.js interactive pointillism engine (PointGen).
-- **[`server/`](./server/)**: Flask-based Intelligence Hub for structural image analysis.
-- **[`smart_ascii/`](./smart_ascii/README.md)**: Pro configuration-driven ASCII tool (Borders, 70-char mapping, TrueColor).
+- **[`web_interface/`](./web_interface/)**: The Orbital Volumetric Engine (Three.js).
+- **[`server/`](./server/)**: Python Flask Hub for 3D Depth extraction and metadata analysis.
+- **[`smart_ascii/`](./smart_ascii/README.md)**: Pro configuration-driven ASCII tool (Borders, 70-char mapping).
 - **[`github_ascii/`](./github_ascii/README.md)**: Specialized 54-char pointillism for GitHub dark mode.
-- **[`basic_ascii/`](./basic_ascii/README.md)**: Fundamental pixel-to-character translation pipeline.
 
 ## 🔌 Getting Started
 1. **Launch the Intelligence Hub**:
@@ -25,14 +25,13 @@ The project is structured into specialized modules:
    python server/app.py
    ```
 2. **Launch the Engine**:
-   Open [`web_interface/index.html`](./web_interface/index.html) in any modern browser.
-3. **Verify Connection**:
-   A green indicator in the browser bottom-right confirms the Python AI is connected and active.
+   Open `http://127.0.0.1:5000/` in any modern browser.
+3. **Explore**:
+   The engine will **autoload** `silver.jpg` and build a 3D cloud. Click and drag to orbit the relief!
 
 ## 🧪 Quality Assurance
-The project follows TDD patterns. To verify the backend:
-```powershell
-python server/test_integration.py
-```
+The project utilizes a dual-layer TDD approach:
+- **Backend**: `python server/test_integration.py` (Verifies Depth & Status API).
+- **Frontend**: Check the browser console for the **AsciiTests** suite (Verifies Orbital & Shader health).
 
-Enjoy making high-fidelity kinetic art!
+Enjoy the nebula!

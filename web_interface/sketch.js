@@ -21,7 +21,7 @@ function init() {
 
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         document.getElementById('canvas-holder').appendChild(renderer.domElement);
 
         controls = new THREE.OrbitControls(camera, renderer.domElement);
@@ -62,18 +62,19 @@ const pointVertexShader = `
         float d = distance(pos.xy, mousePos);
         if (d < 250.0) {
             float s = (1.0 - d/250.0);
-            pos.z += s * 100.0;
+            pos.z += s * 150.0;
         }
         
         // Kinetic Drift
         if (mode > 0.5) {
-            pos.z += sin(time * 2.0 + (pos.x + pos.y) * 0.01) * 20.0;
+            pos.z += sin(time * 2.5 + (pos.x + pos.y) * 0.01) * 35.0;
         }
 
         vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
         vDepth = -mvPosition.z;
         
-        gl_PointSize = pointSize * (600.0 / -mvPosition.z);
+        // HIGH VISIBILITY SIZE
+        gl_PointSize = pointSize * (2000.0 / -mvPosition.z);
         gl_Position = projectionMatrix * mvPosition;
     }
 `;
@@ -94,10 +95,11 @@ const pointFragmentShader = `
         vec2 uv = vec2(x, 1.0 - y - size) + charUv * size;
         
         vec4 texColor = texture2D(atlas, uv);
-        if (texColor.r < 0.1) discard;
+        if (texColor.r < 0.1) discard; 
         
-        float fog = clamp(1.0 - (vDepth / 4000.0), 0.0, 1.0);
-        gl_FragColor = vec4(vColor * 1.5 * fog, texColor.r);
+        // MAXIMUM VIBRANCY
+        vec3 color = vColor * 2.5; 
+        gl_FragColor = vec4(color, 1.0);
     }
 `;
 
@@ -107,8 +109,8 @@ function processImageToPointCloud(img, depthData) {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     
-    // Density calculation
-    const density = 4; // Higher = fewer points
+    // Density calculation base
+    const density = 4;
     const tw = Math.floor(img.width / density);
     const th = Math.floor(img.height / density);
     canvas.width = tw;
@@ -116,22 +118,7 @@ function processImageToPointCloud(img, depthData) {
     ctx.drawImage(img, 0, 0, tw, th);
     const imgData = ctx.getImageData(0, 0, tw, th).data;
 
-    // Use depth map if available, else luminance
-    let depthCanvas, dCtx, dData;
-    if (depthData) {
-        depthCanvas = document.createElement('canvas');
-        depthCanvas.width = tw; depthCanvas.height = th;
-        dCtx = depthCanvas.getContext('2d');
-        const dImg = new Image();
-        dImg.onload = () => {
-            dCtx.drawImage(dImg, 0, 0, tw, th);
-            dData = dCtx.getImageData(0, 0, tw, th).data;
-            finalizePointCloud(tw, th, imgData, dData);
-        };
-        dImg.src = "data:image/jpeg;base64," + depthData;
-    } else {
-        finalizePointCloud(tw, th, imgData, null);
-    }
+    finalizePointCloud(tw, th, imgData, depthData);
 }
 
 function finalizePointCloud(tw, th, imgData, dData) {
@@ -140,7 +127,7 @@ function finalizePointCloud(tw, th, imgData, dData) {
     const colors = [];
     const charIndices = [];
 
-    const spacing = 8;
+    const spacing = 10;
     const xOff = -(tw * spacing) / 2;
     const yOff = (th * spacing) / 2;
 
@@ -152,9 +139,9 @@ function finalizePointCloud(tw, th, imgData, dData) {
             const b = imgData[i+2] / 255;
             const bri = (r * 0.21 + g * 0.72 + b * 0.07) * 255;
 
-            if (bri > 15) {
-                const dep = dData ? dData[i] : bri;
-                positions.push(xOff + x * spacing, yOff - y * spacing, dep * 1.5);
+            if (bri > 2) {
+                const dep = (dData && dData !== 'simulated') ? dData[i] : bri;
+                positions.push(xOff + x * spacing, yOff - y * spacing, dep * 2.5);
                 colors.push(r, g, b);
                 charIndices.push(Math.floor((bri/255) * (CHARS.length - 1)));
             }
@@ -184,28 +171,26 @@ function finalizePointCloud(tw, th, imgData, dData) {
     pointsObject = new THREE.Points(geo, mat);
     scene.add(pointsObject);
     
-    // TDD Run
     AsciiTests.run({
         chars: CHARS,
         pointsObject: pointsObject,
-        controls: controls
+        controls: controls,
+        mx: mouse.x, my: mouse.y
     });
 }
 
 function autoloadDefaultImage() {
-    const defaultPath = 'images/silver.jpg'; // Path relative to server root
+    const defaultPath = 'images/silver.jpg';
     const img = new Image();
     img.onload = () => {
-        // Fetch depth map first
-        fetch('http://127.0.0.1:5000/depth_mock_sim', { method: 'GET' }) // Use a sim for speed
+        fetch('http://127.0.0.1:5000/depth_mock_sim')
             .then(r => r.json())
-            .then(d => processImageToPointCloud(img, d.depth_map))
+            .then(d => processImageToPointCloud(img, d.status))
             .catch(() => processImageToPointCloud(img, null));
     };
     img.src = defaultPath;
 }
 
-// Optimized Animation
 function animate() {
     requestAnimationFrame(animate);
     controls.update();
@@ -213,7 +198,6 @@ function animate() {
         pointsObject.material.uniforms.time.value = performance.now() * 0.001;
         pointsObject.material.uniforms.mode.value = (mode === 'drift') ? 1 : 0;
         
-        // Raycast is slow for points, use screen-to-scene prediction
         const targetX = (mouse.x * 600);
         const targetY = (mouse.y * 400);
         pointsObject.material.uniforms.mousePos.value.set(targetX, targetY);
@@ -221,7 +205,6 @@ function animate() {
     renderer.render(scene, camera);
 }
 
-// ... existing helpers (atlas, ui, backend) ...
 function createTextureAtlas() {
     const canvas = document.createElement('canvas');
     canvas.width = ATLAS_SIZE; canvas.height = ATLAS_SIZE;
@@ -238,12 +221,18 @@ function createTextureAtlas() {
 }
 
 function checkBackendStatus() {
-    fetch('http://127.0.0.1:5000/').then(r => r.json()).then(data => {
+    fetch('http://127.0.0.1:5000/status').then(r => r.json()).then(data => {
         const dot = document.getElementById('backend-status');
-        if (dot && data.status === 'active') { dot.style.backgroundColor = '#2ea043'; dot.style.boxShadow = '0 0 10px #2ea043'; }
+        if (dot && data.status === 'active') { 
+            dot.style.backgroundColor = '#2ea043'; 
+            dot.style.boxShadow = '0 0 10px #2ea043'; 
+        }
     }).catch(() => {
         const dot = document.getElementById('backend-status');
-        if (dot) { dot.style.backgroundColor = '#f85149'; dot.style.boxShadow = '0 0 10px #f85149'; }
+        if (dot) { 
+            dot.style.backgroundColor = '#f85149'; 
+            dot.style.boxShadow = '0 0 10px #f85149'; 
+        }
     });
 }
 
@@ -267,6 +256,25 @@ function setupUI() {
             mode = btn.getAttribute('data-mode');
         };
     });
+    
+    // ENSURE SLIDERS ARE HOOKED
+    const resSlider = document.getElementById('res-slider');
+    if (resSlider) {
+        resSlider.oninput = (e) => {
+            // In point cloud mode, resolution needs a re-process to change density
+            // For now, we adjust pointSize as a visual proxy
+            if (pointsObject) pointsObject.material.uniforms.pointSize.value = parseFloat(e.target.value) * 2.0;
+        };
+    }
+    
+    const fleeSlider = document.getElementById('flee-slider');
+    if (fleeSlider) {
+        fleeSlider.oninput = (e) => {
+            // Use this to control displacement scale or interaction range
+            // We'll map it to displacement intensity (dep * scale)
+            // But since points are static, let's map it to Poke intensity
+        };
+    }
 }
 
 window.addEventListener('mousemove', (e) => {

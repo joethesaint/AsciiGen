@@ -1,29 +1,27 @@
-# PointGen: Kinetic Pointillism Engine
+# PointGen: Volumetric Orbital Engine
 
-**PointGen** is the high-performance visualization flagship of the ASCII suite. It leverages WebGL (Three.js) to create an interactive, responsive kinetic experience using dot-character sets.
+**PointGen** is the high-performance visualization flagship of the ASCII suite. In its current **Experimental** state, it has transitioned from a 2D plane to a **True 3D Volumetric Cloud**.
 
-## ✨ Core Technology
-- **Engine**: Three.js (WebGL).
-- **Shaders**: Custom GLSL Vertex/Fragment shaders for character sprite instancing.
-- **Physics**: Real-time $O(N)$ interaction loop with squared-distance optimizations.
-- **Backend Hub**: Connects via Flask to perform smart structural analysis.
+## ✨ High-End Evolution
+- **Engine**: Three.js (WebGL) Point Cloud.
+- **Navigation**: Full Orbital 3D controls (OrbitControls.js).
+- **Shader**: Custom GLSL Vertex/Fragment pipeline with Liquid Displacement.
+- **Autoload**: Autonomous sideloading of local assets via the Python Hub.
 
-## 🎨 Creative Features
-- **Cinematic Bloom**: Additive blending for light-stacking effects.
-- **Saturation Boosting**: Custom 1.4x saturation matrix in the GPU for punchy colors.
-- **Perceptual Luminance**: Detail detection mapping based on human eye sensitivity ($0.2126R + 0.7152G + 0.0722B$).
-- **Smart Density**: Variable particle count based on Python-assisted structural edge mapping.
+## 🎨 Volumetric Features
+- **The 3D "Poke"**: A liquid displacement logic where the 3D surface physically bulges toward your cursor.
+- **Color Overdrive (2.5x)**: Tuned for extreme vibrancy against black backgrounds.
+- **Deep Relief**: Increased Z-scale for dramatic sculptural effect.
+- **Kinetic Drift**: GPU-accelerated "breathing" and "wobble" effects on the 3D grid.
+
+## 🧪 TDD Suite
+The `tests.js` file now includes specific checks for:
+- **Orbital Health**: Verifies camera control matrices.
+- **Interaction Health**: Measures mouse-to-GPU coordinate delta.
+- **Cloud Integrity**: Ensures 3D depth buffers are active and populated.
 
 ## 🕹 Controls
-- **Origin**: Particles return to their starting grid positions.
-- **Drift**: Particles float freely with subtle physics.
-- **Explode**: Particles flee with high acceleration on interaction.
-- **Vortex**: Particles orbit the mouse cursor in a fluid swirl.
-- **Interaction Sensitivity**: Controls the effective range of the mouse repulsion.
-- **Particle Density**: Adjusts the resolution of the pointillism grid (GPU-optimized).
-
-## 🧪 Integration Tests
-The `tests.js` file runs a real-time TDD suite in the browser console.
-- **Latency Benchmark**: Ensures image-to-point translation is <150ms.
-- **Performance Profile**: Verified targets of 60 FPS under high density.
-- **Connectivity**: Automated health reporting for the Python backend.
+- **Click & Drag**: Rotate the 3D cloud.
+- **Scroll**: Zoom in/out of the volume.
+- **Density Slider**: Adjusts character size for visual clarity.
+- **Mode Buttons**: Toggle between static Grid, organic Drift, and chaotic Vortex.

@@ -22,7 +22,7 @@ class TestIPYIntegration(unittest.TestCase):
     def test_server_up(self):
         """Test if the server root is reachable."""
         try:
-            response = requests.get(self.BASE_URL)
+            response = requests.get(f"{self.BASE_URL}/status")
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.json()['status'], 'active')
             print("OK - Server is UP and healthy")

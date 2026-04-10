@@ -37,11 +37,11 @@ const AsciiTests = {
     async testBackendConnectivity() {
         console.group("Backend Integration");
         try {
-            const resp = await fetch('http://127.0.0.1:5000');
+            const resp = await fetch('http://127.0.0.1:5000/status');
             const data = await resp.json();
-            this.assert(data.status === 'active', "Connected to Python Intelligence Hub");
+            this.assert(data.status === 'active', "Connected to Python Intelligence Hub (/status)");
         } catch (e) {
-            console.warn("⚠️ Python Backend Unreachable.");
+            console.error("❌ Python Backend UNREACHABLE at /status");
         }
         console.groupEnd();
     },
