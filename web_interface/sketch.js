@@ -130,12 +130,13 @@ const vertexShader = `
     attribute vec3 color;
     varying vec3 vColor;
     varying float vCharIndex;
+    uniform float pointSize;
     
     void main() {
         vColor = color;
         vCharIndex = charIndex;
         vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-        gl_PointSize = 12.0 * (100.0 / length(mvPosition.xyz)); // Slight perspective size
+        gl_PointSize = pointSize * 1.5; 
         gl_Position = projectionMatrix * mvPosition;
     }
 `;
@@ -155,8 +156,9 @@ const fragmentShader = `
         vec2 uv = vec2(x, 1.0 - y - size) + vec2(gl_PointCoord.x, 1.0 - gl_PointCoord.y) * size;
         vec4 texColor = texture2D(atlas, uv);
         
-        if (texColor.r < 0.2) discard; // Sharper threshold
-        gl_FragColor = vec4(vColor * texColor.rgb, 1.0);
+        if (texColor.r < 0.1) discard;
+        // Boost vibrancy for pointillism
+        gl_FragColor = vec4(vColor * texColor.rgb * 1.5, 0.8);
     }
 `;
 
@@ -187,11 +189,16 @@ function processImage(img) {
     for (let y = 0; y < th; y++) {
         for (let x = 0; x < tw; x++) {
             const i = (x + y * tw) * 4;
-            const bri = (data[i] + data[i+1] + data[i+2]) / 3;
-            if (bri > 15) {
+            // Perceptual luminance for better detail detection
+            const bri = (data[i] * 0.2126 + data[i+1] * 0.7152 + data[i+2] * 0.0722);
+            
+            if (bri > 5) { // Lower threshold to capture subtle textures
                 const ci = Math.floor((bri / 255) * (CHARS.length - 1));
                 const c = new THREE.Color(data[i]/255, data[i+1]/255, data[i+2]/255);
                 
+                // Boost visibility slightly
+                c.convertSRGBToLinear(); 
+
                 const px = xOff + x * resolution;
                 const py = yOff - y * resolution;
                 particles.push(new Particle(px, py, ci, c));
@@ -249,12 +256,14 @@ function updateThreeJSPoints() {
     const mat = new THREE.ShaderMaterial({
         uniforms: {
             atlas: { value: textureAtlas },
-            atlasCols: { value: COLS }
+            atlasCols: { value: COLS },
+            pointSize: { value: resolution }
         },
         vertexShader,
         fragmentShader,
         transparent: true,
-        depthTest: false
+        depthTest: false,
+        blending: THREE.AdditiveBlending 
     });
 
     points = new THREE.Points(geo, mat);
