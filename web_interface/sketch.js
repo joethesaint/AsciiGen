@@ -2,22 +2,24 @@ let img;
 let particles = [];
 let mode = 'grid'; 
 let interactionRange = 150;
-let resolution = 6;
+let resolution = 8;
+const CHARS = "  .·:∵∴∷•"; // The user's specific pointism set
+let charImages = []; 
 let detailWeightMap = null;
 
-class Dot {
-    constructor(x, y, brightness, color) {
+class Particle {
+    constructor(x, y, charIndex, brightness, color) {
         this.origin = createVector(x, y);
         this.pos = createVector(random(width), random(height));
         this.vel = createVector(0, 0);
         this.acc = createVector(0, 0);
+        this.charIndex = charIndex;
         this.brightness = brightness;
         this.color = color;
-        this.size = map(brightness, 0, 255, 1, resolution * 1.5);
         
         this.maxSpeed = 10;
         this.maxForce = 0.6;
-        this.friction = 0.85;
+        this.friction = 0.88;
     }
 
     applyForce(f) {
@@ -34,7 +36,7 @@ class Dot {
             flee.mult(0);
         } else {
             arrive.mult(0.5);
-            flee.mult(2);
+            flee.mult(2.5);
             if (mode === 'vortex') {
                 let v = createVector(-(mouseY - this.pos.y), mouseX - this.pos.x);
                 v.setMag(1.5);
@@ -77,10 +79,10 @@ class Dot {
     }
 
     draw() {
-        // Light-weight Pointillism: Simple circles instead of text
-        noStroke();
-        fill(this.color);
-        ellipse(this.pos.x, this.pos.y, this.size, this.size);
+        // High Speed Hack: Draw pre-rendered texture instead of raw text()
+        // Using tint() to colorize the grayscale textures
+        tint(this.color);
+        image(charImages[this.charIndex], this.pos.x, this.pos.y);
     }
 }
 
@@ -91,7 +93,7 @@ function setup() {
     // Procedural heart for startup
     img = createGraphics(400, 400);
     img.background(0);
-    img.fill(255, 50, 80);
+    img.fill(255); // Use white for the mask
     img.noStroke();
     img.translate(200, 200);
     img.beginShape();
@@ -104,11 +106,12 @@ function setup() {
     img.endShape(CLOSE);
     
     setupUI();
+    imageMode(CENTER);
     processImageIntoParticles();
 }
 
 function draw() {
-    background(0, 80); 
+    background(0); // NO TRAILS - Clear background completely each frame
     
     for (let i = 0; i < particles.length; i++) {
         particles[i].behaviors();
@@ -129,9 +132,24 @@ function windowResized() {
     if (img) processImageIntoParticles();
 }
 
+function preRenderChars() {
+    charImages = [];
+    let size = resolution * 1.5;
+    for (let i = 0; i < CHARS.length; i++) {
+        let pg = createGraphics(size * 2, size * 2);
+        pg.pixelDensity(1);
+        pg.fill(255);
+        pg.textAlign(CENTER, CENTER);
+        pg.textSize(size);
+        pg.text(CHARS[i], size, size);
+        charImages.push(pg);
+    }
+}
+
 function processImageIntoParticles() {
     if (!img) return;
     
+    preRenderChars();
     particles = [];
     
     let imgAspect = img.height / img.width;
@@ -162,10 +180,11 @@ function processImageIntoParticles() {
             const brightness = (r + g + b) / 3;
 
             if (brightness > 10) {
+                const charIdx = floor(map(brightness, 0, 255, 0, CHARS.length - 1));
                 const px = xOff + x * resolution + resolution/2;
                 const py = yOff + y * resolution + resolution/2;
                 
-                // Smart Detail Logic
+                // Smart Detail Logic from Python Backend
                 let isDetailArea = false;
                 if (detailWeightMap) {
                     let mapX = floor(map(x, 0, tw, 0, detailWeightMap.width));
@@ -174,16 +193,16 @@ function processImageIntoParticles() {
                     if (detailWeightMap.weight_map[weightIdx] > 50) isDetailArea = true;
                 }
 
-                particles.push(new Dot(px, py, brightness, color(r, g, b)));
+                particles.push(new Particle(px, py, charIdx, brightness, color(r, g, b)));
                 if (isDetailArea) {
-                    particles.push(new Dot(px + random(-2,2), py + random(-2,2), brightness, color(r, g, b)));
+                    particles.push(new Particle(px + random(-2,2), py + random(-2,2), charIdx, brightness, color(r, g, b)));
                 }
             }
         }
     }
 
     AsciiTests.run({
-        chars: "DOT_MODE",
+        chars: CHARS,
         imgW: img.width, imgH: img.height,
         gridW: tw, gridH: th,
         particleCount: particles.length,
