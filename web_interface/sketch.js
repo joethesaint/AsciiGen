@@ -56,6 +56,13 @@ class Particle {
     }
 }
 
+function preload() {
+    // Load default image from the images directory
+    img = loadImage('../images/heart.jpg', () => {
+        processImageIntoParticles();
+    });
+}
+
 function setup() {
     const canvas = createCanvas(windowWidth, windowHeight);
     canvas.parent('canvas-holder');
