@@ -4,7 +4,7 @@ import imp_ascii
 def generate_all_variants():
     # Resolve path abstractly avoiding CWD relative failure
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-    image_path = os.path.join(base_dir, 'images', 'heart.jpg')
+    image_path = os.path.join(base_dir, 'images', 'silver.jpg')
     
     examples_dir = os.path.join(os.path.dirname(__file__), 'examples')
     

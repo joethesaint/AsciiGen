@@ -29,8 +29,7 @@ If you wish to test or visualize all default configurations at once without repe
 ```powershell
 python generate_variants.py
 ```
-**What it does:** Automatically reads `heart.jpg` from the images folder and runs several independent `smart_convert` calls using the internal engine. It safely utilizes proportional scaling logic to generate separate output directories for every major character set (`char_sets_...`) and visual configurations like borders, placing them safely inside the `examples/` directory.
-
+**What it does:** Automatically reads `silver.jpg` from the images folder and runs several independent `smart_convert` calls using the internal engine. It safely utilizes proportional scaling logic to generate separate output directories for every major character set (`char_sets_...`) and visual configurations like borders, placing them safely inside the `examples/` directory.
 
 ## Character Sets
 You can completely change the visual composition of your art by altering the `char_set` property inside `config.yaml`. Supported sets include:
@@ -46,9 +45,9 @@ Because `imp_ascii.py` strictly relies on configuration states, its true power c
 ### 1. The Standard Run
 **Command:** 
 ```powershell
-python imp_ascii.py ../images/heart.jpg
+python imp_ascii.py ../images/silver.jpg
 ```
-**What it does:** Reads `config.yaml` defaults (like `width: 360`), converts `heart.jpg`, prints the result to your terminal, and safely saves a copy locally into `outputs/output.txt`.
+**What it does:** Reads `config.yaml` defaults (like `width: 360`), converts `silver.jpg`, prints the result to your terminal, and safely saves a copy locally into `outputs/output.txt`.
 
 ### 2. Batch Processing Multiple Images
 **Command:** 
