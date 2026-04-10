@@ -19,20 +19,27 @@
         <div class="controls glass">
             <div class="actions">
                 <div class="upload-btn-wrapper">
-                    <button class="btn">Upload Image</button>
+                    <button class="btn">Choose Image</button>
                     <input type="file" id="file-input" accept="image/*" />
                 </div>
-                <button id="toggle-physics" class="btn secondary">Explode Particles</button>
+                <div class="select-wrapper">
+                    <select id="physics-mode" class="btn secondary">
+                        <option value="grid">Locked Grid</option>
+                        <option value="drift">Organic Drift</option>
+                        <option value="explode">Explode Mode</option>
+                        <option value="vortex">Vortex Swarm</option>
+                    </select>
+                </div>
             </div>
 
             <div class="slider-group">
                 <div class="control-item">
                     <label>Interaction Sensitivity</label>
-                    <input type="range" id="flee-slider" min="50" max="400" value="150">
+                    <input type="range" id="flee-slider" min="20" max="600" value="150">
                 </div>
                 <div class="control-item">
-                    <label>Density</label>
-                    <input type="range" id="res-slider" min="5" max="30" value="10">
+                    <label>Particle Density</label>
+                    <input type="range" id="res-slider" min="2" max="25" value="8">
                 </div>
             </div>
         </div>
