@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AsciiGen - Pointillism Web Interface</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.1/p5.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Ascii<span>Gen</span></h1>
+            <p>Premium Pointillism ASCII Art Generator</p>
+        </header>
+
+        <main>
+            <div class="controls glass">
+                <div class="upload-area" id="upload-zone">
+                    <input type="file" id="file-input" accept="image/*" hidden>
+                    <label for="file-input" class="upload-btn">
+                        <span class="icon">📁</span>
+                        <span>Upload Your Image</span>
+                    </label>
+                </div>
+
+                <div class="settings">
+                    <div class="setting-group">
+                        <label for="res-slider">Resolution (Width)</label>
+                        <input type="range" id="res-slider" min="40" max="300" value="100">
+                        <span id="res-val">100</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="output-container glass">
+                <div id="canvas-holder"></div>
+                <div class="actions">
+                    <button id="copy-btn" class="secondary-btn">Copy ASCII</button>
+                    <button id="download-btn" class="secondary-btn">Download .txt</button>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>&copy; 2026 AsciiGen Suite - Optimized for Dark Mode</p>
+        </footer>
+    </div>
+    <script src="sketch.js"></script>
+</body>
+</html>
