@@ -1,96 +1,77 @@
+let img;
 let particles = [];
-let source;
-let isWebcam = false;
-let mode = 'grid'; // 'grid' or 'particle'
-let spacing = 10;
-let chars = " .·:∵∴∷•";
-let showColor = true;
-let interactionStrength = 100;
+let mode = 'grid'; // 'grid' or 'explode'
+let interactionRange = 150;
+let resolution = 10;
+const CHARS = "  .·:∵∴∷•";
 
 class Particle {
-    constructor(x, y, char, color) {
-        this.originX = x;
-        this.originY = y;
+    constructor(x, y, char, brightness) {
+        this.origin = createVector(x, y);
         this.pos = createVector(x, y);
         this.vel = createVector(0, 0);
         this.acc = createVector(0, 0);
         this.char = char;
-        this.color = color;
-        this.friction = 0.95;
-        this.maxSpeed = 5;
+        this.brightness = brightness;
+        
+        this.maxSpeed = 10;
+        this.friction = 0.92;
     }
 
-    applyForce(force) {
-        this.acc.add(force);
+    applyForce(f) {
+        this.acc.add(f);
     }
 
     update() {
-        if (mode === 'particle') {
-            // Behavioral physics
+        if (mode === 'explode') {
             let mouse = createVector(mouseX, mouseY);
             let dir = p5.Vector.sub(this.pos, mouse);
             let dist = dir.mag();
-            
-            if (dist < interactionStrength) {
-                let force = map(dist, 0, interactionStrength, 2, 0);
+
+            if (dist < interactionRange) {
+                let force = map(dist, 0, interactionRange, 5, 0);
                 dir.setMag(force);
                 this.applyForce(dir);
             }
 
-            // Return to origin force
-            let home = createVector(this.originX, this.originY);
-            let returnDir = p5.Vector.sub(home, this.pos);
-            let returnDist = returnDir.mag();
-            returnDir.setMag(returnDist * 0.05);
-            this.applyForce(returnDir);
+            // Always try to return slightly
+            let returnForce = p5.Vector.sub(this.origin, this.pos);
+            returnForce.mult(0.02);
+            this.applyForce(returnForce);
 
             this.vel.add(this.acc);
-            this.vel.limit(this.maxSpeed);
             this.pos.add(this.vel);
             this.vel.mult(this.friction);
             this.acc.mult(0);
         } else {
-            // Classic grid snap with slight jitter if mouse is near
-            let d = dist(mouseX, mouseY, this.originX, this.originY);
-            if (d < 50) {
-                let off = map(d, 0, 50, 5, 0);
-                this.pos.x = this.originX + random(-off, off);
-                this.pos.y = this.originY + random(-off, off);
-            } else {
-                this.pos.x = this.originX;
-                this.pos.y = this.originY;
-            }
+            // Smooth return to origin
+            this.pos.lerp(this.origin, 0.15);
+            this.vel.set(0, 0);
         }
     }
 
     draw() {
-        if (showColor) {
-            fill(this.color);
-        } else {
-            fill(201, 209, 217);
-        }
+        fill(this.brightness);
         text(this.char, this.pos.x, this.pos.y);
     }
 }
 
 function setup() {
-    const canvas = createCanvas(800, 600);
+    const canvas = createCanvas(windowWidth, windowHeight);
     canvas.parent('canvas-holder');
-    textFont('monospace');
-    textAlign(CENTER, CENTER);
     
     setupUI();
+    textFont('monospace');
+    textAlign(CENTER, CENTER);
 }
 
 function draw() {
-    background(13, 17, 23, 100); // Slight trails
+    background(0);
     
-    if (source) {
-        processSource();
-    } else {
-        fill(139, 148, 158);
+    if (particles.length === 0) {
+        fill(100);
         textSize(16);
-        text("Waiting for input source...", width/2, height/2);
+        text("Upload an image to start the experience...", width/2, height/2);
     }
 
     for (let p of particles) {
@@ -99,127 +80,72 @@ function draw() {
     }
 }
 
-function processSource() {
-    // Only rebuild particles if resolution/source changes or grid mode needs fresh data
-    // For performance, we sample the source every frame but only update particle attributes
-    source.loadPixels();
+function windowResized() {
+    resizeCanvas(windowWidth, windowHeight);
+    if (img) processImageIntoParticles();
+}
+
+function processImageIntoParticles() {
+    if (!img) return;
     
-    // Safety check for source ready
-    if (source.width === 0) return;
+    particles = [];
+    
+    // We want the resolution to be based on the window width
+    let targetWidth = floor(width / resolution);
+    let aspectRatio = img.height / img.width;
+    let targetHeight = floor(targetWidth * aspectRatio * 0.45);
 
-    let pIdx = 0;
-    textSize(spacing);
+    let temp = img.get();
+    temp.resize(targetWidth, targetHeight);
+    temp.loadPixels();
 
-    // Calculate scaling to fit source to canvas
-    let wScale = width / source.width;
-    let hScale = height / source.height;
-    let scale = min(wScale, hScale);
-    let xOff = (width - source.width * scale) / 2;
-    let yOff = (height - source.height * scale) / 2;
+    const cellW = width / targetWidth;
+    const cellH = height / targetHeight;
+    const fontSize = cellW * 1.5;
+    textSize(fontSize);
 
-    for (let y = 0; y < source.height; y += spacing / scale) {
-        for (let x = 0; x < source.width; x += spacing / scale) {
-            let sx = floor(x);
-            let sy = floor(y);
-            let pixelIdx = (sx + sy * source.width) * 4;
+    for (let y = 0; y < temp.height; y++) {
+        for (let x = 0; x < temp.width; x++) {
+            const index = (x + y * temp.width) * 4;
+            const r = temp.pixels[index];
+            const g = temp.pixels[index + 1];
+            const b = temp.pixels[index + 2];
+            const brightness = (r + g + b) / 3;
+
+            const charIndex = floor(map(brightness, 0, 255, 0, CHARS.length - 1));
+            const char = CHARS[charIndex];
             
-            let r = source.pixels[pixelIdx];
-            let g = source.pixels[pixelIdx + 1];
-            let b = source.pixels[pixelIdx + 2];
-            let brightnessValue = (r + g + b) / 3;
-
-            let charIdx = floor(map(brightnessValue, 0, 255, 0, chars.length - 1));
-            let c = chars[charIdx];
+            const px = x * cellW + cellW/2;
+            const py = y * cellH + cellH/2;
             
-            let px = x * scale + xOff;
-            let py = y * scale + yOff;
-
-            if (pIdx < particles.length) {
-                particles[pIdx].originX = px;
-                particles[pIdx].originY = py;
-                particles[pIdx].char = c;
-                particles[pIdx].color = color(r, g, b);
-            } else {
-                particles.push(new Particle(px, py, c, color(r, g, b)));
-            }
-            pIdx++;
+            particles.push(new Particle(px, py, char, brightness));
         }
-    }
-
-    // Trim extra particles if resolution changed to be lower
-    if (particles.length > pIdx) {
-        particles.splice(pIdx);
     }
 }
 
 function setupUI() {
-    document.getElementById('webcam-btn').onclick = () => {
-        if (!isWebcam) {
-            source = createCapture(VIDEO);
-            source.size(160, 120); // Low res for processing
-            source.hide();
-            isWebcam = true;
-        } else {
-            isWebcam = false;
-            source = null;
-            particles = [];
-        }
-    };
-
     document.getElementById('file-input').onchange = (e) => {
-        let file = e.target.files[0];
+        const file = e.target.files[0];
         if (file) {
-            loadImage(URL.createObjectURL(file), (loaded) => {
-                source = loaded;
-                isWebcam = false;
-                particles = [];
+            img = loadImage(URL.createObjectURL(file), () => {
+                processImageIntoParticles();
             });
         }
     };
 
-    document.getElementById('mode-grid').onclick = (e) => {
-        mode = 'grid';
-        updateModeBtns(e.target);
-    };
-
-    document.getElementById('mode-particle').onclick = (e) => {
-        mode = 'particle';
-        updateModeBtns(e.target);
-    };
-
-    document.getElementById('res-slider').oninput = (e) => {
-        spacing = parseInt(e.target.value);
-        document.getElementById('res-val').innerText = spacing;
-        particles = []; // Forces rebuild
+    const toggleBtn = document.getElementById('toggle-physics');
+    toggleBtn.onclick = () => {
+        mode = (mode === 'grid') ? 'explode' : 'grid';
+        toggleBtn.innerText = (mode === 'grid') ? 'Explode Particles' : 'Reset Grid';
+        toggleBtn.classList.toggle('secondary');
     };
 
     document.getElementById('flee-slider').oninput = (e) => {
-        interactionStrength = parseInt(e.target.value);
+        interactionRange = parseInt(e.target.value);
     };
 
-    document.getElementById('color-toggle').onchange = (e) => {
-        showColor = e.target.checked;
+    document.getElementById('res-slider').oninput = (e) => {
+        resolution = parseInt(e.target.value);
+        if (img) processImageIntoParticles();
     };
-
-    document.getElementById('download-btn').onclick = () => saveCanvas('ascii_art', 'png');
-    
-    document.getElementById('copy-btn').onclick = () => {
-        // Snap the current state as a text string
-        let textVersion = "";
-        let prevY = -1;
-        // Simple sort to get lines right
-        let sorted = [...particles].sort((a,b) => a.originY - b.originY || a.originX - b.originX);
-        for(let p of sorted) {
-            if (prevY !== -1 && p.originY > prevY + 2) textVersion += "\n";
-            textVersion += p.char;
-            prevY = p.originY;
-        }
-        navigator.clipboard.writeText(textVersion);
-        alert("Formatted ASCII Snapshot copied!");
-    };
-}
-
-function updateModeBtns(activeBtn) {
-    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-    activeBtn.classList.add('active');
 }

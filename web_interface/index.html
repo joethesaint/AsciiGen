@@ -3,74 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AsciiGen - Interactive Particle Engine</title>
+    <title>AsciiGen - Pure Cinematic Engine</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.1/p5.min.js"></script>
 </head>
 <body>
-    <div class="container">
+    <div id="canvas-holder"></div>
+
+    <div class="ui-overlay">
         <header>
-            <h1>Ascii<span>Gen</span> <small>Interactive</small></h1>
-            <p>Creative Coding Pointillism Engine</p>
+            <h1>Ascii<span>Gen</span></h1>
+            <p>Interactive Pointillism Experience</p>
         </header>
 
-        <main>
-            <div class="controls glass">
-                <div class="input-source">
-                    <button id="webcam-btn" class="primary-btn">Toggle Webcam</button>
-                    <div class="upload-area" id="upload-zone">
-                        <input type="file" id="file-input" accept="image/*" hidden>
-                        <label for="file-input">
-                            <span class="icon">📁</span>
-                            <span>Upload Image</span>
-                        </label>
-                    </div>
+        <div class="controls glass">
+            <div class="actions">
+                <div class="upload-btn-wrapper">
+                    <button class="btn">Upload Image</button>
+                    <input type="file" id="file-input" accept="image/*" />
                 </div>
-
-                <div class="settings">
-                    <div class="setting-group">
-                        <label>Mode</label>
-                        <div class="mode-toggle">
-                            <button id="mode-grid" class="mode-btn active">Classic Grid</button>
-                            <button id="mode-particle" class="mode-btn">Dynamic Particles</button>
-                        </div>
-                    </div>
-
-                    <div class="setting-group">
-                        <label for="res-slider">Density (Lower is denser)</label>
-                        <input type="range" id="res-slider" min="5" max="25" value="10">
-                        <span id="res-val">10</span>
-                    </div>
-
-                    <div class="setting-group">
-                        <label for="flee-slider">Interaction Strength</label>
-                        <input type="range" id="flee-slider" min="0" max="200" value="100">
-                    </div>
-
-                    <div class="setting-group checkbox">
-                        <input type="checkbox" id="color-toggle" checked>
-                        <label for="color-toggle">Enable Color</label>
-                    </div>
-                </div>
-
-                <div class="actions">
-                    <button id="copy-btn" class="secondary-btn">Snap ASCII</button>
-                    <button id="download-btn" class="secondary-btn">Save Image</button>
-                </div>
+                <button id="toggle-physics" class="btn secondary">Explode Particles</button>
             </div>
 
-            <div class="output-container glass">
-                <div id="canvas-holder"></div>
-                <div class="instructions">
-                    <p>Move your mouse over the canvas to interact with the ASCII particles!</p>
+            <div class="slider-group">
+                <div class="control-item">
+                    <label>Interaction Sensitivity</label>
+                    <input type="range" id="flee-slider" min="50" max="400" value="150">
+                </div>
+                <div class="control-item">
+                    <label>Density</label>
+                    <input type="range" id="res-slider" min="5" max="30" value="10">
                 </div>
             </div>
-        </main>
-
-        <footer>
-            <p>&copy; 2026 AsciiGen Suite - Phase 4: Creative Rendering</p>
-        </footer>
+        </div>
     </div>
+
     <script src="sketch.js"></script>
 </body>
 </html>
