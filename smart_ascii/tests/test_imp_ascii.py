@@ -145,6 +145,31 @@ def test_convert_for_github_lock_aspect(temp_image):
         imp_ascii.config['github']['width'] = orig_width
         imp_ascii.config['github']['lock_aspect'] = orig_lock
 
+def test_smart_convert_rgb_bug_and_configs(temp_image):
+    # Test high_quality = False, autocontrast = False to trigger the RGB scalar bug fix
+    orig_autocontrast = imp_ascii.config['processing']['autocontrast']
+    orig_hq = imp_ascii.config['processing']['high_quality']
+    
+    try:
+        imp_ascii.config['processing']['autocontrast'] = False
+        imp_ascii.config['processing']['high_quality'] = False
+        
+        art = imp_ascii.smart_convert(temp_image, target_width=10, char_set='reverse')
+        
+        assert isinstance(art, str)
+        lines = art.split('\n')
+        assert len(lines) == 5
+        assert len(lines[0]) == 10
+        
+        # Test with detailed char set
+        art_detailed = imp_ascii.smart_convert(temp_image, target_width=15, char_set='detailed')
+        assert len(art_detailed.split('\n')[0]) == 15
+        
+    finally:
+        imp_ascii.config['processing']['autocontrast'] = orig_autocontrast
+        imp_ascii.config['processing']['high_quality'] = orig_hq
+
+
 def test_convert_for_github_no_lock(temp_image):
     # original config
     orig_width = imp_ascii.config['github']['width']

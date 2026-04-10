@@ -1,7 +1,7 @@
 # Processing options
 processing:
-  autocontrast: true
-  high_quality: true
+  autocontrast: false
+  high_quality: false
 
 # Feature toggles
 features:

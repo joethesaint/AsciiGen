@@ -39,6 +39,10 @@ def smart_convert(image_path, target_width, char_set='default', target_height=No
     resize_method = Image.LANCZOS if config['processing']['high_quality'] else Image.BILINEAR
     img = img.resize((target_width, target_height), resize_method)
     
+    # Ensure image is in grayscale mode before mapping to characters
+    if img.mode != 'L':
+        img = img.convert('L')
+        
     # Convert to ASCII
     pixels = np.array(img)
     chars = ASCII_CHARS[char_set]
