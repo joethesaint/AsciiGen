@@ -9,7 +9,9 @@ from colorama import Fore, Style, init
 init(autoreset=True)
 
 # Load config
-with open('config.yaml') as f:
+import os
+config_path = os.path.join(os.path.dirname(__file__), 'config.yaml')
+with open(config_path) as f:
     config = yaml.safe_load(f)
 
 # ASCII character sets
