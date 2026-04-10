@@ -6,16 +6,19 @@ let resolution = 10;
 const CHARS = "  .·:∵∴∷•";
 
 class Particle {
-    constructor(x, y, char, brightness) {
+    constructor(x, y, char, brightness, color) {
         this.origin = createVector(x, y);
         this.pos = createVector(x, y);
         this.vel = createVector(0, 0);
         this.acc = createVector(0, 0);
         this.char = char;
         this.brightness = brightness;
+        this.color = color;
         
         this.maxSpeed = 10;
         this.friction = 0.92;
+        this.noiseScale = 0.01;
+        this.noiseOffset = random(1000);
     }
 
     applyForce(f) {
@@ -24,19 +27,26 @@ class Particle {
 
     update() {
         if (mode === 'explode') {
+            // Mouse Repel
             let mouse = createVector(mouseX, mouseY);
             let dir = p5.Vector.sub(this.pos, mouse);
             let dist = dir.mag();
 
             if (dist < interactionRange) {
-                let force = map(dist, 0, interactionRange, 5, 0);
+                let force = map(dist, 0, interactionRange, 6, 0);
                 dir.setMag(force);
                 this.applyForce(dir);
             }
 
-            // Always try to return slightly
+            // Perlin Noise Drift (Creative Phase 4)
+            let n = noise(this.pos.x * this.noiseScale, this.pos.y * this.noiseScale, frameCount * 0.01 + this.noiseOffset);
+            let noiseForce = p5.Vector.fromAngle(n * TWO_PI * 2);
+            noiseForce.mult(0.1);
+            this.applyForce(noiseForce);
+
+            // Return to origin force (Spring-like)
             let returnForce = p5.Vector.sub(this.origin, this.pos);
-            returnForce.mult(0.02);
+            returnForce.mult(0.015);
             this.applyForce(returnForce);
 
             this.vel.add(this.acc);
@@ -51,7 +61,7 @@ class Particle {
     }
 
     draw() {
-        fill(this.brightness);
+        fill(this.color);
         text(this.char, this.pos.x, this.pos.y);
     }
 }
@@ -73,7 +83,7 @@ function setup() {
 }
 
 function draw() {
-    background(0);
+    background(0, 50); // Alpha for motion trails
     
     if (particles.length === 0) {
         fill(100);
@@ -140,7 +150,8 @@ function processImageIntoParticles() {
             const px = xOff + x * resolution + resolution/2;
             const py = yOff + y * resolution + resolution/2;
             
-            particles.push(new Particle(px, py, char, brightness));
+            let c = color(r, g, b);
+            particles.push(new Particle(px, py, char, brightness, c));
         }
     }
 
@@ -151,7 +162,10 @@ function processImageIntoParticles() {
         gridW: targetWidth,
         gridH: targetHeight,
         fontComp: 0.45,
-        particleCount: particles.length
+        particleCount: particles.length,
+        particles: particles,
+        winW: width,
+        winH: height
     });
 }
 
