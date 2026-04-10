@@ -157,8 +157,18 @@ const fragmentShader = `
         vec4 texColor = texture2D(atlas, uv);
         
         if (texColor.r < 0.1) discard;
-        // Boost vibrancy for pointillism
-        gl_FragColor = vec4(vColor * texColor.rgb * 1.5, 0.8);
+        
+        // PUNCHY COLOR LOGIC
+        vec3 color = vColor;
+        
+        // 1. Boost Saturation
+        float gray = dot(color, vec3(0.299, 0.587, 0.114));
+        color = mix(vec3(gray), color, 1.4); // 40% Saturation Boost
+        
+        // 2. Alpha masking for sharp edges (prevents gray fringes)
+        float alpha = texColor.r * 0.9;
+        
+        gl_FragColor = vec4(color, alpha);
     }
 `;
 
@@ -196,9 +206,7 @@ function processImage(img) {
                 const ci = Math.floor((bri / 255) * (CHARS.length - 1));
                 const c = new THREE.Color(data[i]/255, data[i+1]/255, data[i+2]/255);
                 
-                // Boost visibility slightly
-                c.convertSRGBToLinear(); 
-
+                // Keep colors in standard space for the saturation shader
                 const px = xOff + x * resolution;
                 const py = yOff - y * resolution;
                 particles.push(new Particle(px, py, ci, c));
@@ -263,7 +271,7 @@ function updateThreeJSPoints() {
         fragmentShader,
         transparent: true,
         depthTest: false,
-        blending: THREE.AdditiveBlending 
+        blending: THREE.NormalBlending // Normal blending for deep, accurate color
     });
 
     points = new THREE.Points(geo, mat);
