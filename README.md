@@ -1,30 +1,50 @@
 # ASCII Image Generator
 
-This project is a **work in progress** tool for converting images into ASCII art.
+This tool converts images into highly customizable ASCII art, featuring a refined **Pointillism** style optimized for your GitHub Profile README (dark mode). 
 
 ## Features
 
-- Convert JPEG images to ASCII text art
-- Output ASCII art to `.txt` files
-- Configurable settings via `config.yaml`
+- **Multiple Styles**: Supports standard ASCII, reversed strings, and the *Pointillism* aesthetic (`pointism`).
+- **Configurable**: Easily change resolutions, toggle color maps, and set custom aspects via `config.yaml`.
+- **GitHub Optimized**: The Pointillism style uses negative space and precise dot scatters (`•∴∵·: `) to flawlessly pop out on dark backgrounds.
+- **Smart Sizing**: Automatic aspect ratio matching depending on target width.
 
 ## Project Structure
 
-- `ascii_gen.py`, `imp_ascii.py`, `github_ascii.py`: Main scripts for ASCII conversion
-- `ascii_output.txt`, `output.txt`, `silver.txt`: Example ASCII outputs
-- `.jpg` and `.jpeg` files: Source images for conversion
-- `config.yaml`: Configuration file
+- `imp_ascii.py`: **Main script** to run for advanced, configurable ASCII conversions.
+- `github_ascii.py`: **The GitHub Version** - automatically generates art precisely sized for profile READMEs (54 chars width) using the pointillism style.
+- `ascii_gen.py`: A simple/basic standard python script.
+- `config.yaml`: The central configuration file for `imp_ascii.py`.
 
-## Usage
+## Quick Start
 
-1. Place your image in the project directory.
-2. Run one of the Python scripts to generate ASCII art.
-3. View the output in the corresponding `.txt` file.
+1. **Activate the Environment (if applicable)**:
+   ```powershell
+   .\.venv\Scripts\activate
+   ```
+2. **Setup your Configuration**: 
+   Open `config.yaml` to ensure your `char_set` under `github` or `output` is set up properly.
+   *Tip: Use `"pointism"` for dark background aesthetics!*
+
+3. **Convert your Image**:
+   For the **standard configurable version**, run the main script:
+   ```powershell
+   python imp_ascii.py silver.jpg
+   ```
+   
+   For the **GitHub Version** (perfectly sized for your profile README at 54-wide):
+   ```powershell
+   python github_ascii.py silver.jpg profile_output.txt
+   ```
+
+4. **Result**:
+   Check `output.txt` and copy/paste it into your GitHub Profile `README.md` inside markdown code blocks:
+   ```text
+   ```text
+   [Paste ASCII Art Here]
+   ```
+   ```
 
 ## Status
 
-This project is under active development. Features and documentation may change.
-
----
-
-**Contributions and feedback are welcome!**
+This project is under active development. Keep breaking boundaries and making cool art!

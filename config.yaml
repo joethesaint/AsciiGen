@@ -13,11 +13,11 @@ features:
 github:
   width: 540
   lock_aspect: true  # Force 1012x899 ratio
-  char_set: "reverse"  # Better for dark backgrounds
+  char_set: "pointism"  # Perfect for dot-style aesthetics
 
 # Output configuration
 output:
   width: 360
-  char_set: "default"
+  char_set: "pointism"
   save_to_file: true
-  filename: "silver.txt"
+  filename: "output.txt"

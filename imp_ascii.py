@@ -16,16 +16,18 @@ with open('config.yaml') as f:
 ASCII_CHARS = {
     'default': "@%#*+=-:. ",
     'reverse': " .:-=+*#%@",
-    'detailed': " .'`^\",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$"
+    'detailed': " .'`^\\\",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$",
+    'pointism': "  .·:∵∴∷•"
 }
 
-def smart_convert(image_path, target_width, char_set='default'):
+def smart_convert(image_path, target_width, char_set='default', target_height=None):
     """Main conversion function with smart features"""
     img = Image.open(image_path)
     orig_width, orig_height = img.size
     
     # Calculate target height maintaining aspect ratio
-    target_height = int((orig_height/orig_width) * target_width * 0.5)
+    if target_height is None:
+        target_height = int((orig_height/orig_width) * target_width * 0.5)
     
     # Apply configured processing
     if config['processing']['autocontrast']:
@@ -88,8 +90,7 @@ def convert_for_github(image_path):
         orig_width, orig_height = img.size
         github_height = int((orig_height/orig_width) * github_width * 0.45)
     
-    img = img.resize((github_width, github_height))
-    return smart_convert(image_path, github_width, char_set=config['github']['char_set'])
+    return smart_convert(image_path, github_width, char_set=config['github']['char_set'], target_height=github_height)
 
 if __name__ == "__main__":
     # Handle command line arguments

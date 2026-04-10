@@ -2,8 +2,8 @@ from PIL import Image
 import numpy as np
 import sys
 
-# GitHub-optimized ASCII characters (darker to lighter)
-ASCII_CHARS = " .'`^\",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$"
+# GitHub-optimized pointillism characters (black space to bright white dots)
+ASCII_CHARS = "  .·:∵∴∷•"
 
 def convert_to_github_ascii(image_path):
     try:
