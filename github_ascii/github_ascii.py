@@ -1,6 +1,7 @@
 from PIL import Image
 import numpy as np
 import sys
+import os
 
 # GitHub-optimized pointillism characters (black space to bright white dots)
 ASCII_CHARS = "  .·:∵∴∷•"
@@ -40,8 +41,12 @@ if __name__ == "__main__":
     ascii_art = convert_to_github_ascii(sys.argv[1])
     
     if len(sys.argv) > 2:
-        with open(sys.argv[2], 'w', encoding='utf-8') as f:
+        output_dir = os.path.join(os.path.dirname(__file__), 'outputs')
+        os.makedirs(output_dir, exist_ok=True)
+        output_file = os.path.join(output_dir, os.path.basename(sys.argv[2]))
+        
+        with open(output_file, 'w', encoding='utf-8') as f:
             f.write(ascii_art)
-        print(f"Saved to {sys.argv[2]}")
+        print(f"Saved to {output_file}")
     else:
         print(ascii_art)

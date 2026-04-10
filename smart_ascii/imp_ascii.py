@@ -134,8 +134,13 @@ if __name__ == "__main__":
 
             # Output handling
             if config['output']['save_to_file']:
-                output_file = (f"output_{i+1}.txt" if len(image_paths) > 1 
+                output_dir = os.path.join(os.path.dirname(__file__), 'outputs')
+                os.makedirs(output_dir, exist_ok=True)
+                
+                filename = (f"output_{i+1}.txt" if len(image_paths) > 1 
                              else config['output']['filename'])
+                output_file = os.path.join(output_dir, os.path.basename(filename))
+                
                 with open(output_file, 'w', encoding='utf-8') as f:
                     f.write(art)
                 print(f"Saved ASCII art to {output_file}")

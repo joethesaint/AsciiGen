@@ -44,7 +44,12 @@ if __name__ == "__main__":
     
     image_path = sys.argv[1]
     output_width = int(sys.argv[2]) if len(sys.argv) > 2 else 100
-    output_file = sys.argv[3] if len(sys.argv) > 3 else "ascii_output.txt"
+    
+    output_dir = os.path.join(os.path.dirname(__file__), 'outputs')
+    os.makedirs(output_dir, exist_ok=True)
+    
+    output_filename = sys.argv[3] if len(sys.argv) > 3 else "ascii_output.txt"
+    output_file = os.path.join(output_dir, os.path.basename(output_filename))
     
     ascii_art = convert_image_to_ascii(image_path, output_width)
     if ascii_art:
