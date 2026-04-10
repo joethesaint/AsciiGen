@@ -144,25 +144,15 @@ function processImageIntoParticles() {
         }
     }
 
-    runInternalTests(targetWidth, targetHeight, imgAspect);
-}
-
-function runInternalTests(tw, th, aspect) {
-    console.log("--- Internal Logic Test ---");
-    console.log(`Target Grid: ${tw}x${th}`);
-    let calcAspect = th / tw;
-    let diff = abs(calcAspect - aspect);
-    if (diff < 0.1) {
-        console.log("✅ Aspect Ratio Check Passed");
-    } else {
-        console.warn(`❌ Aspect Ratio Mismatch: Expected ${aspect}, Got ${calcAspect}`);
-    }
-    console.log(`Particle Count: ${particles.length}`);
-    if (particles.length === tw * th) {
-        console.log("✅ Particle Density Verified");
-    } else {
-        console.warn("❌ Particle Count Mismatch");
-    }
+    AsciiTests.run({
+        chars: CHARS,
+        imgW: img.width,
+        imgH: img.height,
+        gridW: targetWidth,
+        gridH: targetHeight,
+        fontComp: 0.45,
+        particleCount: particles.length
+    });
 }
 
 function setupUI() {

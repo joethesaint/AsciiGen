@@ -1,7 +1,7 @@
 # ASCII Creative Engine - Implementation Log
 
-## Status: 🔵 Zero-Server Aesthetic Pivot
-**Current Phase:** Finalizing Pure p5.js Cinematic Engine
+## Status: 🎨 Creative Coding Phase
+**Current Phase:** Phase 4 - Creative Interactivity & TDD
 
 ---
 
@@ -12,34 +12,36 @@
 - [x] Port ASCII character mapping logic entirely into the JS thread.
 - [x] Implement 60fps local processing for uploaded images.
 
-### Phase 2: High-Performance Processing 🟢 (In Progress)
-- [ ] Implement robust one-shot ASCII processing in Python.
-- [ ] Optimize JSON payload size for large fullscreen grids.
-- [ ] Remove webcam dependencies to reduce overhead.
+### Phase 2: Fundamental Physics 🔵 (Complete)
+- [x] Enable 60fps local interactivity (Mouse Repel).
+- [x] Implement "Return to Origin" particle forces.
+- [x] Fix aspect ratio and centering math to prevent stretching.
 
-### Phase 3: Fullscreen Cinematic Aesthetic ⚪
-- [ ] Transition `index.html` to a minimal fullscreen layout.
-- [ ] Implement auto-scaling p5.js canvas (Window to Window).
-- [ ] Optimize Particle loops for 60fps local interaction.
+### Phase 3: Zero-Server Cinematic Engine 🔵 (Complete)
+- [x] Transition `index.html` to a minimal fullscreen layout.
+- [x] Implement auto-scaling p5.js canvas (Window to Window).
+- [x] Default to `heart.jpg` on startup for an instant experience.
 
-### Phase 4: Interactivity & Polish ⚪
-- [ ] Add mouse-repel forces in the p5.js loop.
-- [ ] Implement color data transmission from Python to JS.
-- [ ] Add motion blur and Perlin Noise drift effects.
+### Phase 4: Creative Coding & TDD Verification 🟢 (In Progress)
+- [ ] **TDD Suite**: Build `tests.js` to validate mathematical mapping and density.
+- [ ] **Variable Fonts**: Integrate high-quality Monospace fonts.
+- [ ] **Dynamic Coloring**: Re-enable pixel-perfect color mapping.
+- [ ] **Motion Blur**: Add translucent trails and Perlin noise drift.
 
 ---
 
 ## 📝 Design Decisions
 
-### Why Flask + WebSockets?
-While p5.js can handle simple image processing, Python's **Pillow** and potential **NumPy** integrations allow for much more complex "heavy duty" manipulations (like autocontrast, edge detection, or massive batch processing) without bogging down the browser's UI thread.
+### Zero-Server Pivot
+We transitioned from a Flask backend to a pure p5.js implementation. This eliminates network overhead and allows for instantaneous local processing of images, ensuring the UI remains fluid at 60fps even with thousands of particles.
 
-### Data Protocol
-We will send **2D Brightness/Character Arrays** via Socket.IO. This minimizes the compute load on the browser, allowing the frontend to focus purely on high-frequency visual physics.
+### Creative Particle System
+Each ASCII character is an autonomous agent. Instead of a static printout, the art is a dynamic system that reacts to external forces (mouse movements) and internal constraints (the original image mapping).
 
 ---
 
 ## 🛠 Tech Stack
-- **Backend:** Python 3.x, Flask, Flask-SocketIO, Pillow.
-- **Frontend:** HTML5, Vanilla CSS, p5.js, Socket.IO Client.
-- **Communication:** WebSockets (Real-time).
+- **Frontend:** HTML5, Vanilla CSS (Glassmorphism).
+- **Core Engine:** p5.js (Creative Coding Framework).
+- **Processing:** Local JavaScript TypedArrays (via p5 image logic).
+- **Testing:** Internal `tests.js` harness.
