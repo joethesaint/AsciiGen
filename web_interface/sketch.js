@@ -4,7 +4,8 @@ let mode = 'grid';
 let interactionRange = 150;
 let resolution = 8;
 const CHARS = "  .·:∵∴∷•";
-let charImages = []; // Cache for pre-rendered textures
+let charImages = []; 
+let detailWeightMap = null; // Data from Python Backend
 
 class Particle {
     constructor(x, y, char, charIndex, brightness, color) {
@@ -174,7 +175,22 @@ function processImageIntoParticles() {
                 const charIdx = floor(map(brightness, 0, 255, 0, CHARS.length - 1));
                 const px = xOff + x * resolution + resolution/2;
                 const py = yOff + y * resolution + resolution/2;
+                
+                // Smart ASCII logic: check if this area has high detail
+                let isDetailArea = false;
+                if (detailWeightMap) {
+                    let mapX = floor(map(x, 0, tw, 0, detailWeightMap.width));
+                    let mapY = floor(map(y, 0, th, 0, detailWeightMap.height));
+                    let weightIdx = (mapX + mapY * detailWeightMap.width);
+                    if (detailWeightMap.weight_map[weightIdx] > 50) isDetailArea = true;
+                }
+
                 particles.push(new Particle(px, py, CHARS[charIdx], charIdx, brightness, color(r, g, b)));
+                
+                // If high detail area, add a micro-particle for sharpness
+                if (isDetailArea) {
+                    particles.push(new Particle(px + 2, py + 2, CHARS[charIdx], charIdx, brightness, color(r, g, b)));
+                }
             }
         }
     }
@@ -209,6 +225,21 @@ function setupUI() {
     document.getElementById('file-input').onchange = (e) => {
         const file = e.target.files[0];
         if (file) {
+            // Intertwine Python: Send image to backend for analysis
+            let formData = new FormData();
+            formData.append('image', file);
+            
+            fetch('http://localhost:5000/analyze', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                detailWeightMap = data;
+                console.log("Python Intelligence Received:", data.width, "x", data.height);
+            })
+            .catch(err => console.warn("Backend analysis skipped (Service unavailable)"));
+
             loadImage(URL.createObjectURL(file), (newImg) => {
                 img = newImg;
                 processImageIntoParticles();
