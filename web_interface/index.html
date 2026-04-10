@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AsciiGen - Pure Cinematic Engine</title>
     <link rel="stylesheet" href="style.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.1/p5.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
     <div id="canvas-holder"></div>
@@ -28,7 +28,8 @@
                     <button class="mode-btn" data-mode="explode">Explode</button>
                     <button class="mode-btn" data-mode="vortex">Vortex</button>
                 </div>
-                <div class="stats glass">
+                <div class="stats glass" style="display: flex; align-items: center; justify-content: center;">
+                    <span id="backend-status" style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: #ff4444; margin-right: 10px; box-shadow: 0 0 10px #ff4444; transition: 0.3s;" title="Checking Python Status..."></span>
                     <span id="fps-counter">60 FPS</span>
                 </div>
             </div>

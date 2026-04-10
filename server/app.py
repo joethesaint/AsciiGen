@@ -19,10 +19,13 @@ def process_image_metadata(image_stream):
     Calculates a weight map based on edge detection to inform particle density.
     """
     try:
-        # Simple is better than complex: Use PIL filters for edge detection
+        # Avoid complex heavy-lifting on large images: Downscale first
         img = Image.open(image_stream).convert('L')
-        width, height = img.size
+        # Limit processing to a manageable detail size
+        max_size = (800, 800)
+        img.thumbnail(max_size, Image.ANTIALIAS)
         
+        width, height = img.size
         # Detect edges to find areas of high detail
         edges = img.filter(ImageFilter.FIND_EDGES)
         
