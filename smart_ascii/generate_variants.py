@@ -44,6 +44,17 @@ def generate_all_variants():
         
     imp_ascii.config['features']['borders'] = orig_borders
     
+    # 3. GitHub Profile Optmization
+    out_dir = os.path.join(examples_dir, 'feature_github')
+    os.makedirs(out_dir, exist_ok=True)
+    
+    # Leverage the natively specialized GitHub profile conversion config
+    art_github = imp_ascii.convert_for_github(image_path)
+    
+    with open(os.path.join(out_dir, 'output.txt'), 'w', encoding='utf-8') as f:
+        f.write(art_github)
+
+    
     print(f"Generated all examples inside {examples_dir}/")
 
 if __name__ == "__main__":
