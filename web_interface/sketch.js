@@ -6,15 +6,16 @@ let resolution = 8;
 const CHARS = "  .·:∵∴∷•"; 
 let charImages = []; 
 let detailWeightMap = null;
+let lastProcessingTime = 0;
 
 class Particle {
-    constructor(x, y, charIndex, brightness, color) {
-        this.origin = createVector(x, y);
-        this.pos = createVector(random(width), random(height));
-        this.vel = createVector(0, 0);
-        this.acc = createVector(0, 0);
+    // HIGH PERFORMANCE: Avoiding p5.Vector objects to reduce GC pressure and object overhead
+    constructor(x, y, charIndex, color) {
+        this.ox = x; this.oy = y; // Origin
+        this.px = random(width); this.py = random(height); // Position
+        this.vx = 0; this.vy = 0; // Velocity
+        this.ax = 0; this.ay = 0; // Acceleration
         this.charIndex = charIndex;
-        this.brightness = brightness;
         this.color = color;
         
         this.maxSpeed = 10;
@@ -22,76 +23,82 @@ class Particle {
         this.friction = 0.88;
     }
 
-    applyForce(f) {
-        this.acc.add(f);
+    applyForce(fx, fy) {
+        this.ax += fx;
+        this.ay += fy;
     }
 
     behaviors() {
-        let arrive = this.arrive(this.origin);
-        let mouse = createVector(mouseX, mouseY);
-        let flee = this.flee(mouse);
+        // Arrive logic (Raw math for speed)
+        let dx = this.ox - this.px;
+        let dy = this.oy - this.py;
+        let d = Math.sqrt(dx*dx + dy*dy);
+        let speed = this.maxSpeed;
+        if (d < 100) speed = (d / 100) * this.maxSpeed;
+        
+        let desiredX = (dx / d) * speed;
+        let desiredY = (dy / d) * speed;
+        
+        let steerX = desiredX - this.vx;
+        let steerY = desiredY - this.vy;
+        let smag = Math.sqrt(steerX*steerX + steerY*steerY);
+        if (smag > this.maxForce) {
+            steerX = (steerX / smag) * this.maxForce;
+            steerY = (steerY / smag) * this.maxForce;
+        }
 
-        if (mode === 'grid') {
-            arrive.mult(1.5);
-            flee.mult(0);
-        } else {
-            arrive.mult(0.5);
-            flee.mult(2.5);
-            if (mode === 'vortex') {
-                let v = createVector(-(mouseY - this.pos.y), mouseX - this.pos.x);
-                v.setMag(1.5);
-                this.applyForce(v);
+        // Flee logic
+        let mdx = mouseX - this.px;
+        let mdy = mouseY - this.py;
+        let md = Math.sqrt(mdx*mdx + mdy*mdy);
+        let fleeX = 0, fleeY = 0;
+
+        if (md < interactionRange) {
+            let mdesiredX = -(mdx / md) * this.maxSpeed;
+            let mdesiredY = -(mdy / md) * this.maxSpeed;
+            fleeX = mdesiredX - this.vx;
+            fleeY = mdesiredY - this.vy;
+            let fmag = Math.sqrt(fleeX*fleeX + fleeY*fleeY);
+            if (fmag > (this.maxForce * 2.5)) {
+                fleeX = (fleeX/fmag) * (this.maxForce * 2.5);
+                fleeY = (fleeY/fmag) * (this.maxForce * 2.5);
             }
         }
 
-        this.applyForce(arrive);
-        this.applyForce(flee);
-    }
-
-    arrive(target) {
-        let desired = p5.Vector.sub(target, this.pos);
-        let d = desired.mag();
-        let speed = (d < 100) ? map(d, 0, 100, 0, this.maxSpeed) : this.maxSpeed;
-        desired.setMag(speed);
-        let steer = p5.Vector.sub(desired, this.vel);
-        steer.limit(this.maxForce);
-        return steer;
-    }
-
-    flee(target) {
-        let desired = p5.Vector.sub(target, this.pos);
-        let d = desired.mag();
-        if (d < interactionRange) {
-            desired.setMag(this.maxSpeed);
-            desired.mult(-1);
-            let steer = p5.Vector.sub(desired, this.vel);
-            steer.limit(this.maxForce * 2.5);
-            return steer;
+        if (mode === 'grid') {
+            this.applyForce(steerX * 1.5, steerY * 1.5);
+        } else {
+            this.applyForce(steerX * 0.5, steerY * 0.5);
+            this.applyForce(fleeX * 2.5, fleeY * 2.5);
+            if (mode === 'vortex') {
+                let vx = -(mouseY - this.py) * 0.02;
+                let vy = (mouseX - this.px) * 0.02;
+                this.applyForce(vx, vy);
+            }
         }
-        return createVector(0, 0);
     }
 
     update() {
-        this.vel.add(this.acc);
-        this.pos.add(this.vel);
-        this.acc.mult(0);
-        this.vel.mult(this.friction);
+        this.vx += this.ax;
+        this.vy += this.ay;
+        this.px += this.vx;
+        this.py += this.vy;
+        this.ax = 0;
+        this.ay = 0;
+        this.vx *= this.friction;
+        this.vy *= this.friction;
     }
 
     draw() {
         tint(this.color);
-        image(charImages[this.charIndex], this.pos.x, this.pos.y);
+        image(charImages[this.charIndex], this.px, this.py);
     }
 }
 
 function setup() {
     const canvas = createCanvas(windowWidth, windowHeight);
     canvas.parent('canvas-holder');
-    
-    // Default image is now empty to save compute on startup.
-    // The engine waits for a user upload.
     img = null; 
-    
     setupUI();
     imageMode(CENTER);
 }
@@ -100,13 +107,14 @@ function draw() {
     background(0); 
     
     if (particles.length > 0) {
-        for (let i = 0; i < particles.length; i++) {
-            particles[i].behaviors();
-            particles[i].update();
-            particles[i].draw();
+        // Optimized loop
+        for (let i = 0, len = particles.length; i < len; i++) {
+            let p = particles[i];
+            p.behaviors();
+            p.update();
+            p.draw();
         }
     } else {
-        // Simple landing state
         textAlign(CENTER, CENTER);
         fill(100);
         noStroke();
@@ -132,7 +140,7 @@ function preRenderChars() {
     charImages = [];
     let size = resolution * 1.5;
     for (let i = 0; i < CHARS.length; i++) {
-        let pg = createGraphics(size * 2, size * 2);
+        let pg = createGraphics(Math.ceil(size * 2), Math.ceil(size * 2));
         pg.pixelDensity(1);
         pg.fill(255);
         pg.textAlign(CENTER, CENTER);
@@ -144,6 +152,8 @@ function preRenderChars() {
 
 function processImageIntoParticles() {
     if (!img) return;
+    
+    const startTime = performance.now();
     
     preRenderChars();
     particles = [];
@@ -188,13 +198,15 @@ function processImageIntoParticles() {
                     if (detailWeightMap.weight_map[weightIdx] > 50) isDetailArea = true;
                 }
 
-                particles.push(new Particle(px, py, charIdx, brightness, color(r, g, b)));
+                particles.push(new Particle(px, py, charIdx, color(r, g, b)));
                 if (isDetailArea) {
-                    particles.push(new Particle(px + random(-2,2), py + random(-2,2), charIdx, brightness, color(r, g, b)));
+                    particles.push(new Particle(px + random(-2,2), py + random(-2,2), charIdx, color(r, g, b)));
                 }
             }
         }
     }
+
+    lastProcessingTime = performance.now() - startTime;
 
     AsciiTests.run({
         chars: CHARS,
@@ -203,7 +215,8 @@ function processImageIntoParticles() {
         particleCount: particles.length,
         particles: particles,
         winW: width, winH: height,
-        fps: frameRate()
+        fps: frameRate(),
+        latency: lastProcessingTime
     });
 }
 
@@ -214,7 +227,7 @@ function setupUI() {
             let formData = new FormData();
             formData.append('image', file);
             fetch('http://127.0.0.1:5000/analyze', { method: 'POST', body: formData })
-                .then(r => response = r.json()).then(data => { detailWeightMap = data; processImageIntoParticles(); })
+                .then(r => r.json()).then(data => { detailWeightMap = data; processImageIntoParticles(); })
                 .catch(e => console.warn("Backend unavailable"));
 
             loadImage(URL.createObjectURL(file), (newImg) => {

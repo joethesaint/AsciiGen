@@ -44,6 +44,15 @@ const AsciiTests = {
     },
 
     /**
+     * Measure Startup & Processing Latency
+     */
+    testLatency(processingTimeMs) {
+        console.group("Latency Benchmark");
+        this.assert(processingTimeMs < 150, `Image to Particle processing is lightning fast (${processingTimeMs.toFixed(2)}ms)`);
+        console.groupEnd();
+    },
+
+    /**
      * TDD for Backend Communication
      */
     async testBackendConnectivity() {
@@ -73,6 +82,7 @@ const AsciiTests = {
         this.testCharacterMapping(config.chars);
         this.testAspectRatio(config.imgW, config.imgH, config.gridW, config.gridH);
         this.testPerformance(Math.floor(config.fps), config.particleCount);
+        this.testLatency(config.latency);
         this.testBoundaries(config.particles, config.winW, config.winH);
         await this.testBackendConnectivity();
     }
