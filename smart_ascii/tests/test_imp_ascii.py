@@ -169,6 +169,30 @@ def test_smart_convert_rgb_bug_and_configs(temp_image):
         imp_ascii.config['processing']['autocontrast'] = orig_autocontrast
         imp_ascii.config['processing']['high_quality'] = orig_hq
 
+def test_all_char_sets(temp_image):
+    # Test that each character set dynamically maps without out-of-bounds index errors
+    char_sets = ['default', 'reverse', 'pointism', 'detailed']
+    
+    for cs in char_sets:
+        art = imp_ascii.smart_convert(temp_image, target_width=10, char_set=cs)
+        assert isinstance(art, str)
+        assert len(art) > 0
+        
+        # Verify specific structural character inclusion based on set
+        if cs == 'default':
+            # default usually starts with light characters for white images (like test_image.jpg which is white)
+            # white = 255 -> index len-1 -> " " 
+            assert " " in art
+        elif cs == 'reverse':
+            # white = 255 -> index len-1 -> "@"
+            assert "@" in art
+        elif cs == 'pointism':
+            # white = 255 -> index len-1 -> "•"
+            assert "•" in art
+        elif cs == 'detailed':
+            # white = 255 -> index len-1 -> "$"
+            assert "$" in art
+
 
 def test_convert_for_github_no_lock(temp_image):
     # original config

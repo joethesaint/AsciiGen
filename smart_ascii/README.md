@@ -22,6 +22,13 @@ python imp_ascii.py <image.jpg>
 ```
 Note: Depending on configuration properties inside `config.yaml`, outputs are natively printed to your console with coloring applied and safely saved in the local `outputs/` directory.
 
+## Character Sets
+You can completely change the visual composition of your art by altering the `char_set` property inside `config.yaml`. Supported sets include:
+- `"default"`: Standard thick ASCII progression (`@%#*+=-:. `), perfect for rendering dark text on light backgrounds.
+- `"reverse"`: The inverse of default (` .:-=+*#%@`), perfect for displaying bright shapes onto a dark terminal block.
+- `"pointism"`: A heavily specialized scattering layout (`  .·:∵∴∷•`) using dot matrices heavily optimized for styling over dark-mode environments (like GitHub).
+- `"detailed"`: An extensive mapping leveraging 70 unique characters for massive high-resolution conversions.
+
 ## Examples
 
 Because `imp_ascii.py` strictly relies on configuration states, its true power comes from mixing CLI commands with `config.yaml` states.
