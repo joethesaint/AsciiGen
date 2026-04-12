@@ -266,8 +266,8 @@ function checkBackendStatus() {
     fetch('http://127.0.0.1:5000/status').then(r => r.json()).then(data => {
         const dot = document.getElementById('backend-status');
         if (dot && data.status === 'active') { 
-            dot.style.backgroundColor = '#00f2ff'; 
-            dot.style.boxShadow = '0 0 10px #00f2ff'; 
+            dot.style.backgroundColor = '#39d353'; 
+            dot.style.boxShadow = '0 0 10px #39d353'; 
         }
     }).catch(() => {
         const dot = document.getElementById('backend-status');

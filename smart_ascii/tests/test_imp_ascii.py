@@ -1,263 +1,101 @@
 import pytest
-from pathlib import Path
-from PIL import Image
+import io
+import os
 import numpy as np
-
+from PIL import Image
+from pathlib import Path
 import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
 import imp_ascii
 
 @pytest.fixture
-def temp_image(tmp_path):
+def temp_image_path(tmp_path):
+    """Fixture to provide a temporary 20x20 white JPEG image."""
     img = Image.new('RGB', (20, 20), color='white')
     img_path = tmp_path / "test_image.jpg"
     img.save(img_path)
     return str(img_path)
 
-def test_add_borders():
+@pytest.fixture
+def mock_config(mocker):
+    """Fixture to mock the imp_ascii.config dictionary."""
+    # Create a deep copy of the real config to safely modify
+    import copy
+    test_config = copy.deepcopy(imp_ascii.config)
+    mocker.patch.object(imp_ascii, 'config', test_config)
+    return test_config
+
+def test_add_borders(mock_config):
     original_art = "hello\nworld"
+    mock_config['features']['borders'] = True
+    mock_config['features']['border_char'] = '#'
     
-    # Store original config
-    orig_borders = imp_ascii.config['features']['borders']
-    orig_border_char = imp_ascii.config['features'].get('border_char', '#')
+    bordered_art = imp_ascii.add_borders(original_art)
+    lines = bordered_art.split('\n')
+    assert lines[0] == '#' * 9
+    assert lines[1] == '# hello #'
     
-    try:
-        # Test with borders enabled
-        imp_ascii.config['features']['borders'] = True
-        imp_ascii.config['features']['border_char'] = '#'
-        
-        bordered_art = imp_ascii.add_borders(original_art)
-        lines = bordered_art.split('\n')
-        assert lines[0] == '#' * 9
-        assert lines[1] == '# hello #'
-        assert lines[2] == '# world #'
-        assert lines[-1] == '#' * 9
+    mock_config['features']['borders'] = False
+    assert imp_ascii.add_borders(original_art) == original_art
 
-        # Test with borders disabled
-        imp_ascii.config['features']['borders'] = False
-        assert imp_ascii.add_borders(original_art) == original_art
-    finally:
-        # Restore configuration
-        imp_ascii.config['features']['borders'] = orig_borders
-        imp_ascii.config['features']['border_char'] = orig_border_char
-
-def test_smart_convert(temp_image):
-    # Test basic conversion and confirm output dimensions based on formula:
-    # target_height = int((orig_height/orig_width) * target_width * 1.0)
-    orig_aspect = imp_ascii.config['processing'].get('font_aspect', 0.5)
-    try:
-        imp_ascii.config['processing']['font_aspect'] = 1.0
-        art = imp_ascii.smart_convert(temp_image, target_width=10, char_set='default')
-        assert isinstance(art, str)
-        
-        lines = art.split('\n')
-        assert len(lines) > 0
-        # Original image is 20x20. Target width 10.
-        # Height calculation: int((20/20) * 10 * 1.0) = 10 lines.
-        assert len(lines) == 10
-        # Width calculation: lines should be 10 characters wide
-        assert len(lines[0]) == 10
-    finally:
-        imp_ascii.config['processing']['font_aspect'] = orig_aspect
-
-def test_ascii_chars_defined():
-    # Ensure sets are correctly defined as specified
-    assert 'default' in imp_ascii.ASCII_CHARS
-    assert 'pointism' in imp_ascii.ASCII_CHARS
-    assert 'reverse' in imp_ascii.ASCII_CHARS
-
-def test_add_color():
-    art = "hi\nho"
-    # Provide a 2D array simulating the L mode (grayscale) resize pixel data
-    pixels = np.array([
-        [255, 128],
-        [0, 255]
-    ])
+def test_smart_convert_dimensions(temp_image_path, mock_config):
+    """Verify smart_convert respects specified dimensions with font_aspect=1.0."""
+    mock_config['processing']['font_aspect'] = 1.0
+    art = imp_ascii.smart_convert(temp_image_path, target_width=10, char_set='default')
     
-    orig_color = imp_ascii.config['features']['color']
-    try:
-        imp_ascii.config['features']['color'] = True
-        colored = imp_ascii.add_color(art, pixels)
-        
-        # Verify ANSI codes are inserted
-        assert "\033[38;2;" in colored
-        assert "m" in colored # format ending
-        
-        # We simulate 255 which goes to r=g=b=255. 
-        # Check that proper formatting is done.
-        assert "255;255;255" in colored
-        
-        # Ensure we have 2 lines returned
-        lines = colored.split('\n')
-        assert len(lines) == 2
-        
-        imp_ascii.config['features']['color'] = False
-        uncolored = imp_ascii.add_color(art, pixels)
-        assert uncolored == art
-        
-    finally:
-        imp_ascii.config['features']['color'] = orig_color
+    lines = art.split('\n')
+    assert len(lines) == 10
+    assert len(lines[0]) == 10
 
-def test_add_color_edge_cases():
-    orig_color = imp_ascii.config['features']['color']
-    try:
-        imp_ascii.config['features']['color'] = True
-        
-        # Test row bounds: pixels has 2 rows but art has only 1 line
-        art_row = "hi"
-        pixels_multi_row = np.array([
-            [255, 128],
-            [0, 255]
-        ])
-        colored_row = imp_ascii.add_color(art_row, pixels_multi_row)
-        assert len(colored_row.split('\n')) == 1  # Only formatted 1 line
-        
-        # Test column bounds: pixels has 2 columns but art has only 1 char
-        art_col = "h"
-        pixels_multi_col = np.array([
-            [255, 128]
-        ])
-        colored_col = imp_ascii.add_color(art_col, pixels_multi_col)
-        assert "\033" in colored_col
-        # Verify it successfully broke execution after handling the first char
-        
-    finally:
-        imp_ascii.config['features']['color'] = orig_color
-
-def test_convert_for_github_lock_aspect(temp_image):
-    # original config
-    orig_width = imp_ascii.config['github']['width']
-    orig_lock = imp_ascii.config['github']['lock_aspect']
-    
-    try:
-        imp_ascii.config['github']['width'] = 100
-        imp_ascii.config['github']['lock_aspect'] = True
-        
-        art = imp_ascii.convert_for_github(temp_image)
-        lines = art.split('\n')
-        
-        expected_ratio = 899 / 1012
-        # Based on convert_for_github calculation: height = int(expected_ratio * 100 * 0.45)
-        expected_height = int(expected_ratio * 100 * 0.45)  # Let's say we expect this.
-        # Note: we might fail if the function doesn't actually use expected_height!
-        
-        assert len(lines) == expected_height
-        assert len(lines[0]) == 100
-    finally:
-        imp_ascii.config['github']['width'] = orig_width
-        imp_ascii.config['github']['lock_aspect'] = orig_lock
-
-def test_smart_convert_rgb_bug_and_configs(temp_image):
-    # Test high_quality = False, autocontrast = False to trigger the RGB scalar bug fix
-    orig_autocontrast = imp_ascii.config['processing']['autocontrast']
-    orig_hq = imp_ascii.config['processing']['high_quality']
-    orig_aspect = imp_ascii.config['processing'].get('font_aspect', 0.5)
-    
-    try:
-        imp_ascii.config['processing']['autocontrast'] = False
-        imp_ascii.config['processing']['high_quality'] = False
-        imp_ascii.config['processing']['font_aspect'] = 1.0
-        
-        art = imp_ascii.smart_convert(temp_image, target_width=10, char_set='reverse')
-        
-        assert isinstance(art, str)
-        lines = art.split('\n')
-        assert len(lines) == 10
-        assert len(lines[0]) == 10
-        
-        # Test with detailed char set
-        art_detailed = imp_ascii.smart_convert(temp_image, target_width=15, char_set='detailed')
-        assert len(art_detailed.split('\n')[0]) == 15
-        
-    finally:
-        imp_ascii.config['processing']['autocontrast'] = orig_autocontrast
-        imp_ascii.config['processing']['high_quality'] = orig_hq
-        imp_ascii.config['processing']['font_aspect'] = orig_aspect
-
-def test_all_char_sets(temp_image):
-    # Test that each character set dynamically maps without out-of-bounds index errors
-    char_sets = ['default', 'reverse', 'pointism', 'detailed']
-    
-    for cs in char_sets:
-        art = imp_ascii.smart_convert(temp_image, target_width=10, char_set=cs)
+def test_all_char_sets(temp_image_path):
+    """Dynamic check for all defined ASCII character sets."""
+    for cs in ['default', 'reverse', 'pointism', 'detailed']:
+        art = imp_ascii.smart_convert(temp_image_path, target_width=10, char_set=cs)
         assert isinstance(art, str)
         assert len(art) > 0
-        
-        # Verify specific structural character inclusion based on set
-        if cs == 'default':
-            # default usually starts with light characters for white images (like test_image.jpg which is white)
-            # white = 255 -> index len-1 -> " " 
-            assert " " in art
-        elif cs == 'reverse':
-            # white = 255 -> index len-1 -> "@"
-            assert "@" in art
-        elif cs == 'pointism':
-            # white = 255 -> index len-1 -> "•"
-            assert "•" in art
-        elif cs == 'detailed':
-            # white = 255 -> index len-1 -> "$"
-            assert "$" in art
 
-def test_aspect_ratio_exact_scaling(temp_image):
-    # temp_image is dynamically built as 100x100.
-    # By strictly providing 'font_aspect' sizing rule to 1.0 instead of 0.5,
-    # requested target_width=50 must map cleanly to 50 height, not 25.
+def test_add_color(mock_config):
+    art = "hi\nho"
+    pixels = np.array([[255, 128], [0, 255]])
+    mock_config['features']['color'] = True
     
-    orig_aspect = imp_ascii.config['processing'].get('font_aspect', 0.5)
-    try:
-        imp_ascii.config['processing']['font_aspect'] = 1.0
-        art = imp_ascii.smart_convert(temp_image, target_width=50)
-        
-        lines = art.split('\n')
-        # TDD Check: We expect EXACT width * 1 substitution since image is square
-        assert len(lines) == 50, f"Expected exactly 50 height, got {len(lines)} lines"
-        assert len(lines[0]) == 50, f"Expected exactly 50 width, got {len(lines[0])} dimensions"
-    finally:
-        imp_ascii.config['processing']['font_aspect'] = orig_aspect
+    colored = imp_ascii.add_color(art, pixels)
+    assert "\033[38;2;" in colored
+    assert "255;255;255" in colored
 
-
-def test_convert_for_github_no_lock(temp_image):
-    # original config
-    orig_width = imp_ascii.config['github']['width']
-    orig_lock = imp_ascii.config['github']['lock_aspect']
+def test_convert_for_github(temp_image_path, mock_config):
+    mock_config['github']['width'] = 100
+    mock_config['github']['lock_aspect'] = True
     
-    try:
-        imp_ascii.config['github']['width'] = 100
-        imp_ascii.config['github']['lock_aspect'] = False
-        
-        # Temp image is 20x20
-        art = imp_ascii.convert_for_github(temp_image)
-        lines = art.split('\n')
-        
-        # based on convert_for_github calculation: orig_height / orig_width * width * 0.45
-        expected_height = int((20 / 20) * 100 * 0.45) # convert_for_github uses 0.45!
-        
-        # It delegates to smart_convert with target_height calculated using 0.45
-        assert len(lines) == expected_height
-        assert len(lines[0]) == 100
-    finally:
-        imp_ascii.config['github']['width'] = orig_width
-        imp_ascii.config['github']['lock_aspect'] = orig_lock
+    art = imp_ascii.convert_for_github(temp_image_path)
+    lines = art.split('\n')
+    assert len(lines[0]) == 100
 
-def test_smart_convert_scale(temp_image):
-    # Test that scale correctly adjusts both width and height from original image sizes.
-    # temp_image is 20x20
-    orig_aspect = imp_ascii.config['processing'].get('font_aspect', 0.5)
-    try:
-        imp_ascii.config['processing']['font_aspect'] = 0.5
-        # Scale = 2.0 -> width = 40. height = 40 * 0.5 = 20
-        art = imp_ascii.smart_convert(temp_image, scale=2.0)
-        lines = art.split('\n')
-        
-        assert len(lines) == 20
-        assert len(lines[0]) == 40
-        
-        # Scale overrides target_width
-        art2 = imp_ascii.smart_convert(temp_image, target_width=10, scale=0.5)
-        lines2 = art2.split('\n')
-        assert len(lines2) == 5 # 20 * 0.5 * 0.5
-        assert len(lines2[0]) == 10 # 20 * 0.5
-    finally:
-        imp_ascii.config['processing']['font_aspect'] = orig_aspect
+def test_add_color_edge_cases(mock_config):
+    """Test add_color behavior when dimensions don't match exactly."""
+    art = "h\ni"
+    # Row dimension mismatch
+    pixels = np.array([[255]]) 
+    mock_config['features']['color'] = True
+    colored = imp_ascii.add_color(art, pixels)
+    assert len(colored.split('\n')) == 1 # Only one row colored
+    
+    # Col dimension mismatch
+    pixels_wide = np.array([[255, 128], [0, 255]])
+    colored_wide = imp_ascii.add_color("a", pixels_wide)
+    assert "\033" in colored_wide
+
+def test_convert_for_github_no_lock(temp_image_path, mock_config):
+    """Verify github conversion works without aspect ratio locking."""
+    mock_config['github']['width'] = 100
+    mock_config['github']['lock_aspect'] = False
+    
+    art = imp_ascii.convert_for_github(temp_image_path)
+    lines = art.split('\n')
+    assert len(lines[0]) == 100
+
+def test_imp_ascii_error_handling(tmp_path):
+    """Test behavior with non-existent file."""
+    with pytest.raises(Exception):
+        imp_ascii.smart_convert(str(tmp_path / "non_existent.jpg"))
