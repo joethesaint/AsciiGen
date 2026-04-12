@@ -44,5 +44,24 @@ class TestBackendProcessing(unittest.TestCase):
         with self.assertRaises(Exception):
             process_image_metadata(io.BytesIO(b""))
 
+    def test_zoom_processing(self):
+        """Test that the backend can handle a 'zoom' parameter to crop the center."""
+        # Create an image with a specific feature in the center
+        img = Image.new('RGB', (100, 100), color='black')
+        # Put a white dot in the center (50, 50)
+        img.putpixel((50, 50), (255, 255, 255))
+        
+        buf = io.BytesIO()
+        img.save(buf, format='JPEG')
+        buf.seek(0)
+        
+        # We expect a zoom parameter to focus on the center
+        # If we zoom by 2x, the 100x100 image should effectively be a 50x50 crop of the center
+        metadata = process_image_metadata(buf, zoom=2.0)
+        
+        self.assertEqual(metadata['zoom_applied'], 2.0)
+        # Weight map should reflect the zoomed content
+        self.assertGreater(sum(metadata['weight_map']), 0)
+
 if __name__ == '__main__':
     unittest.main()

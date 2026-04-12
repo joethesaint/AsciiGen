@@ -20,10 +20,20 @@ const AsciiTests = {
         console.groupEnd();
     },
 
-    testOrbitalHealth(controls) {
-        console.group("Orbital Navigation");
-        const isOrbiting = controls && typeof controls.update === 'function';
-        this.assert(isOrbiting, "Orbital Navigation engine is latched and functional");
+    testCursorBasedRotation(pointsObject) {
+        console.group("Cursor Based Rotation");
+        const hasRotationLogic = pointsObject && pointsObject.rotation;
+        this.assert(hasRotationLogic, "Points object exists and is rotate-ready");
+        console.groupEnd();
+    },
+
+    testFlowToggle() {
+        console.group("Flow Reaction Toggle");
+        const toggle = document.getElementById('flow-toggle');
+        this.assert(toggle !== null, "Flow reaction toggle exists in UI");
+        
+        // Check if global state exists (we'll define this in sketch.js)
+        this.assert(typeof window.isFlowEnabled !== 'undefined', "Flow state variable is initialized");
         console.groupEnd();
     },
 
@@ -46,10 +56,21 @@ const AsciiTests = {
         console.groupEnd();
     },
 
+    testZoomControl(camera) {
+        console.group("Zoom Integration");
+        const hasCamera = camera !== undefined;
+        this.assert(hasCamera, "Camera instance detected for zoom control");
+        const initialZoom = camera.position.z;
+        this.assert(initialZoom > 0, `Initial zoom level verified: ${initialZoom}`);
+        console.groupEnd();
+    },
+
     async run(config) {
         console.log("%c--- RUNNING POINTGEN ORBITAL TDD ---", "color: #58a6ff; font-weight: bold;");
         this.testCharacterMapping(config.chars);
-        this.testOrbitalHealth(config.controls);
+        this.testCursorBasedRotation(config.pointsObject);
+        this.testZoomControl(config.camera);
+        this.testFlowToggle();
         this.testMouseInertia(config.mx, config.my);
         await this.testBackendConnectivity();
     }

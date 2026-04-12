@@ -1,13 +1,17 @@
 /**
- * PointGen: High-End Volumetric Point Cloud Engine
- * Uses individual Dots/Fullstops to maintain the image in 3D space.
+ * PointGen: High-End Volumetric Point Cloud Engine (v3.0)
+ * Modern Cursor-Based Interactivity, Zoom Depth, & Retractable UI
  */
 
-let scene, camera, renderer, pointsObject, controls;
+let scene, camera, renderer, pointsObject;
 let mode = 'grid';
+window.isFlowEnabled = true;
 const CHARS = "  .·:∵∴∷•";
 let textureAtlas;
 let mouse = new THREE.Vector2();
+let targetRotation = new THREE.Euler();
+let currentRotation = new THREE.Euler();
+let targetZoom = 1200;
 
 const ATLAS_SIZE = 512;
 const CHAR_SIZE = 64;
@@ -24,10 +28,6 @@ function init() {
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         document.getElementById('canvas-holder').appendChild(renderer.domElement);
 
-        controls = new THREE.OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.dampingFactor = 0.05;
-
         createTextureAtlas();
         setupUI();
         
@@ -35,7 +35,7 @@ function init() {
         autoloadDefaultImage();
         
         animate();
-        console.log("PointGen: Volumetric Point Engine Active");
+        console.log("PointGen v3.0: Kinetic Engine Active");
     } catch (e) {
         console.error("Critical Engine Failure:", e);
     }
@@ -51,6 +51,7 @@ const pointVertexShader = `
     uniform float pointSize;
     uniform vec2 mousePos;
     uniform float mode;
+    uniform float flowEnabled;
 
     void main() {
         vColor = color;
@@ -58,11 +59,13 @@ const pointVertexShader = `
         
         vec3 pos = position;
         
-        // Liquid interaction (The Poke)
-        float d = distance(pos.xy, mousePos);
-        if (d < 250.0) {
-            float s = (1.0 - d/250.0);
-            pos.z += s * 150.0;
+        // Flow Interaction (The Poke)
+        if (flowEnabled > 0.5) {
+            float d = distance(pos.xy, mousePos);
+            if (d < 250.0) {
+                float s = (1.0 - d/250.0);
+                pos.z += s * 150.0;
+            }
         }
         
         // Kinetic Drift
@@ -73,7 +76,6 @@ const pointVertexShader = `
         vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
         vDepth = -mvPosition.z;
         
-        // HIGH VISIBILITY SIZE
         gl_PointSize = pointSize * (2000.0 / -mvPosition.z);
         gl_Position = projectionMatrix * mvPosition;
     }
@@ -97,7 +99,6 @@ const pointFragmentShader = `
         vec4 texColor = texture2D(atlas, uv);
         if (texColor.r < 0.1) discard; 
         
-        // MAXIMUM VIBRANCY
         vec3 color = vColor * 2.5; 
         gl_FragColor = vec4(color, 1.0);
     }
@@ -109,7 +110,6 @@ function processImageToPointCloud(img, depthData) {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     
-    // Density calculation base
     const density = 4;
     const tw = Math.floor(img.width / density);
     const th = Math.floor(img.height / density);
@@ -159,7 +159,8 @@ function finalizePointCloud(tw, th, imgData, dData) {
             pointSize: { value: spacing * 1.5 },
             time: { value: 0 },
             mousePos: { value: new THREE.Vector2(-5000, -5000) },
-            mode: { value: 0 }
+            mode: { value: 0 },
+            flowEnabled: { value: window.isFlowEnabled ? 1.0 : 0.0 }
         },
         vertexShader: pointVertexShader,
         fragmentShader: pointFragmentShader,
@@ -171,12 +172,15 @@ function finalizePointCloud(tw, th, imgData, dData) {
     pointsObject = new THREE.Points(geo, mat);
     scene.add(pointsObject);
     
-    AsciiTests.run({
-        chars: CHARS,
-        pointsObject: pointsObject,
-        controls: controls,
-        mx: mouse.x, my: mouse.y
-    });
+    setTimeout(() => {
+        AsciiTests.run({
+            chars: CHARS,
+            pointsObject: pointsObject,
+            camera: camera,
+            mx: mouse.x, 
+            my: mouse.y
+        });
+    }, 500);
 }
 
 function autoloadDefaultImage() {
@@ -193,15 +197,30 @@ function autoloadDefaultImage() {
 
 function animate() {
     requestAnimationFrame(animate);
-    controls.update();
+    
+    // Smooth Cursor-Based Rotation (TILT)
+    targetRotation.y = mouse.x * 0.4;
+    targetRotation.x = -mouse.y * 0.4;
+    
+    currentRotation.x += (targetRotation.x - currentRotation.x) * 0.05;
+    currentRotation.y += (targetRotation.y - currentRotation.y) * 0.05;
+    
+    // Smooth Zoom
+    camera.position.z += (targetZoom - camera.position.z) * 0.1;
+    
     if (pointsObject) {
+        pointsObject.rotation.x = currentRotation.x;
+        pointsObject.rotation.y = currentRotation.y;
+        
         pointsObject.material.uniforms.time.value = performance.now() * 0.001;
         pointsObject.material.uniforms.mode.value = (mode === 'drift') ? 1 : 0;
+        pointsObject.material.uniforms.flowEnabled.value = window.isFlowEnabled ? 1.0 : 0.0;
         
         const targetX = (mouse.x * 600);
         const targetY = (mouse.y * 400);
         pointsObject.material.uniforms.mousePos.value.set(targetX, targetY);
     }
+    
     renderer.render(scene, camera);
 }
 
@@ -224,8 +243,8 @@ function checkBackendStatus() {
     fetch('http://127.0.0.1:5000/status').then(r => r.json()).then(data => {
         const dot = document.getElementById('backend-status');
         if (dot && data.status === 'active') { 
-            dot.style.backgroundColor = '#2ea043'; 
-            dot.style.boxShadow = '0 0 10px #2ea043'; 
+            dot.style.backgroundColor = '#00f2ff'; 
+            dot.style.boxShadow = '0 0 10px #00f2ff'; 
         }
     }).catch(() => {
         const dot = document.getElementById('backend-status');
@@ -237,6 +256,16 @@ function checkBackendStatus() {
 }
 
 function setupUI() {
+    // Sidebar Toggle
+    const sidebar = document.getElementById('sidebar');
+    const toggleBtn = document.getElementById('sidebar-toggle');
+    if (toggleBtn && sidebar) {
+        toggleBtn.onclick = () => {
+            sidebar.classList.toggle('collapsed');
+        };
+    }
+
+    // File Input
     document.getElementById('file-input').onchange = (e) => {
         const file = e.target.files[0];
         if (file) {
@@ -249,6 +278,8 @@ function setupUI() {
             reader.readAsDataURL(file);
         }
     };
+
+    // Mode Buttons
     document.querySelectorAll('.mode-btn').forEach(btn => {
         btn.onclick = () => {
             document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
@@ -256,23 +287,39 @@ function setupUI() {
             mode = btn.getAttribute('data-mode');
         };
     });
-    
-    // ENSURE SLIDERS ARE HOOKED
+
+    // Sliders
     const resSlider = document.getElementById('res-slider');
+    const resVal = document.getElementById('res-val');
     if (resSlider) {
         resSlider.oninput = (e) => {
-            // In point cloud mode, resolution needs a re-process to change density
-            // For now, we adjust pointSize as a visual proxy
+            if (resVal) resVal.innerText = e.target.value;
             if (pointsObject) pointsObject.material.uniforms.pointSize.value = parseFloat(e.target.value) * 2.0;
         };
     }
     
     const fleeSlider = document.getElementById('flee-slider');
+    const fleeVal = document.getElementById('flee-val');
     if (fleeSlider) {
         fleeSlider.oninput = (e) => {
-            // Use this to control displacement scale or interaction range
-            // We'll map it to displacement intensity (dep * scale)
-            // But since points are static, let's map it to Poke intensity
+            if (fleeVal) fleeVal.innerText = e.target.value;
+        };
+    }
+
+    const zoomSlider = document.getElementById('zoom-slider');
+    const zoomVal = document.getElementById('zoom-val');
+    if (zoomSlider) {
+        zoomSlider.oninput = (e) => {
+            targetZoom = parseFloat(e.target.value);
+            if (zoomVal) zoomVal.innerText = Math.round(targetZoom);
+        };
+    }
+
+    // Flow Toggle
+    const flowToggle = document.getElementById('flow-toggle');
+    if (flowToggle) {
+        flowToggle.onchange = (e) => {
+            window.isFlowEnabled = e.target.checked;
         };
     }
 }
@@ -281,8 +328,27 @@ window.addEventListener('mousemove', (e) => {
     mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
 });
+
+// SCROLL TO ZOOM
+window.addEventListener('wheel', (e) => {
+    // Zoom sensitivity
+    const zoomStep = 80;
+    if (e.deltaY > 0) {
+        targetZoom = Math.min(targetZoom + zoomStep, 3000);
+    } else {
+        targetZoom = Math.max(targetZoom - zoomStep, 400);
+    }
+    
+    // Sync UI Sliders
+    const zoomSlider = document.getElementById('zoom-slider');
+    const zoomVal = document.getElementById('zoom-val');
+    if (zoomSlider) zoomSlider.value = targetZoom;
+    if (zoomVal) zoomVal.innerText = Math.round(targetZoom);
+}, { passive: false });
+
 window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
+    camera.aspect = window.innerWidth / window.innerHeight; 
+    camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
 });
 

@@ -6,43 +6,77 @@
     <title>AsciiGen - Pure Cinematic Engine</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 </head>
 <body>
     <div id="canvas-holder"></div>
 
+    <button id="sidebar-toggle" class="glass">
+        <span id="toggle-icon">❮</span>
+    </button>
+
     <div class="ui-overlay">
         <header>
             <h1>Point<span>Gen</span></h1>
-            <p>High-Performance Kinetic Pointillism</p>
-        </header>
-
-        <div class="controls glass">
-            <div class="actions">
-                <div class="upload-btn-wrapper">
-                    <button class="btn">Choose Image</button>
-                    <input type="file" id="file-input" accept="image/*" />
-                </div>
-                <div class="mode-selector" id="physics-modes">
-                    <button class="mode-btn active" data-mode="grid">Origin</button>
-                    <button class="mode-btn" data-mode="drift">Drift</button>
-                    <button class="mode-btn" data-mode="vortex">Vortex</button>
-                </div>
-                <div class="stats glass" style="display: flex; align-items: center; justify-content: center;">
-                    <span id="backend-status" style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: #ff4444; margin-right: 10px; box-shadow: 0 0 10px #ff4444; transition: 0.3s;" title="Checking Python Status..."></span>
+            <div class="subtitle-container">
+                <p>Kinetic Pointillism v3.0</p>
+                <div id="backend-status-container">
+                    <span id="backend-status"></span>
                     <span id="fps-counter">60 FPS</span>
                 </div>
             </div>
+        </header>
 
-            <div class="slider-group">
+        <div class="sidebar glass" id="sidebar">
+            <div class="section">
+                <h3>System Controls</h3>
+                <div class="upload-btn-wrapper">
+                    <button class="btn btn-primary">Load Source</button>
+                    <input type="file" id="file-input" accept="image/*" />
+                </div>
+            </div>
+
+            <div class="section">
+                <h3>Motion Dynamics</h3>
+                <div class="mode-selector" id="physics-modes">
+                    <button class="mode-btn active" data-mode="grid">Static</button>
+                    <button class="mode-btn" data-mode="drift">Drift</button>
+                    <button class="mode-btn" data-mode="vortex">Vortex</button>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3>Simulation Params</h3>
                 <div class="control-item">
-                    <label>Interaction Sensitivity</label>
-                    <input type="range" id="flee-slider" min="20" max="600" value="150">
+                    <div class="label-row">
+                        <label>Interaction Range</label>
+                        <span class="val-display" id="flee-val">150</span>
+                    </div>
+                    <input type="range" id="flee-slider" min="20" max="600" value="150" class="asterisk-slider">
                 </div>
                 <div class="control-item">
-                    <label>Particle Density</label>
-                    <input type="range" id="res-slider" min="2" max="25" value="8">
+                    <div class="label-row">
+                        <label>Particle Density</label>
+                        <span class="val-display" id="res-val">8</span>
+                    </div>
+                    <input type="range" id="res-slider" min="2" max="25" value="8" class="asterisk-slider">
                 </div>
+                <div class="control-item">
+                    <div class="label-row">
+                        <label>View Depth (Zoom)</label>
+                        <span class="val-display" id="zoom-val">1200</span>
+                    </div>
+                    <input type="range" id="zoom-slider" min="400" max="3000" value="1200" class="asterisk-slider">
+                </div>
+            </div>
+
+            <div class="section toggle-section">
+                <label class="switch-label">
+                    <span>Flow Reaction</span>
+                    <div class="switch">
+                        <input type="checkbox" id="flow-toggle" checked>
+                        <span class="slider round"></span>
+                    </div>
+                </label>
             </div>
         </div>
     </div>

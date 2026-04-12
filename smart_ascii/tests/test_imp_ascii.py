@@ -45,18 +45,22 @@ def test_add_borders():
 
 def test_smart_convert(temp_image):
     # Test basic conversion and confirm output dimensions based on formula:
-    # target_height = int((orig_height/orig_width) * target_width * 0.5)
-    
-    art = imp_ascii.smart_convert(temp_image, target_width=10, char_set='default')
-    assert isinstance(art, str)
-    
-    lines = art.split('\n')
-    assert len(lines) > 0
-    # Original image is 20x20. Target width 10.
-    # Height calculation: int((20/20) * 10 * 1.0) = 10 lines.
-    assert len(lines) == 10
-    # Width calculation: lines should be 10 characters wide
-    assert len(lines[0]) == 10
+    # target_height = int((orig_height/orig_width) * target_width * 1.0)
+    orig_aspect = imp_ascii.config['processing'].get('font_aspect', 0.5)
+    try:
+        imp_ascii.config['processing']['font_aspect'] = 1.0
+        art = imp_ascii.smart_convert(temp_image, target_width=10, char_set='default')
+        assert isinstance(art, str)
+        
+        lines = art.split('\n')
+        assert len(lines) > 0
+        # Original image is 20x20. Target width 10.
+        # Height calculation: int((20/20) * 10 * 1.0) = 10 lines.
+        assert len(lines) == 10
+        # Width calculation: lines should be 10 characters wide
+        assert len(lines[0]) == 10
+    finally:
+        imp_ascii.config['processing']['font_aspect'] = orig_aspect
 
 def test_ascii_chars_defined():
     # Ensure sets are correctly defined as specified
@@ -149,10 +153,12 @@ def test_smart_convert_rgb_bug_and_configs(temp_image):
     # Test high_quality = False, autocontrast = False to trigger the RGB scalar bug fix
     orig_autocontrast = imp_ascii.config['processing']['autocontrast']
     orig_hq = imp_ascii.config['processing']['high_quality']
+    orig_aspect = imp_ascii.config['processing'].get('font_aspect', 0.5)
     
     try:
         imp_ascii.config['processing']['autocontrast'] = False
         imp_ascii.config['processing']['high_quality'] = False
+        imp_ascii.config['processing']['font_aspect'] = 1.0
         
         art = imp_ascii.smart_convert(temp_image, target_width=10, char_set='reverse')
         
@@ -168,6 +174,7 @@ def test_smart_convert_rgb_bug_and_configs(temp_image):
     finally:
         imp_ascii.config['processing']['autocontrast'] = orig_autocontrast
         imp_ascii.config['processing']['high_quality'] = orig_hq
+        imp_ascii.config['processing']['font_aspect'] = orig_aspect
 
 def test_all_char_sets(temp_image):
     # Test that each character set dynamically maps without out-of-bounds index errors

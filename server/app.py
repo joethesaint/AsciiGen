@@ -30,13 +30,25 @@ def status():
         "endpoint": "/analyze (POST)"
     })
 
-def process_image_metadata(image_stream):
+def process_image_metadata(image_stream, zoom=1.0):
     """
     Extracts structural metadata from an image.
     Calculates a weight map based on edge detection to inform particle density.
+    Supports 'zoom' which crops to the center of the image.
     """
     try:
         img = Image.open(image_stream).convert('L')
+        
+        # Apply Zoom (Center Crop)
+        if zoom > 1.0:
+            w, h = img.size
+            new_w, new_h = w / zoom, h / zoom
+            left = (w - new_w) / 2
+            top = (h - new_h) / 2
+            right = (w + new_w) / 2
+            bottom = (h + new_h) / 2
+            img = img.crop((left, top, right, bottom))
+
         max_size = (800, 800)
         resample_filter = getattr(Image, 'Resampling', Image).LANCZOS
         if hasattr(Image, 'ANTIALIAS'):
@@ -50,7 +62,8 @@ def process_image_metadata(image_stream):
         return {
             "width": width,
             "height": height,
-            "weight_map": weight_map
+            "weight_map": weight_map,
+            "zoom_applied": zoom
         }
     except Exception as e:
         raise ValueError(f"Failed to process image: {str(e)}")
@@ -62,8 +75,10 @@ def analyze():
         return jsonify({"error": "No image uploaded"}), 400
     
     image_file = request.files['image']
+    zoom = float(request.args.get('zoom', 1.0))
+    
     try:
-        metadata = process_image_metadata(image_file.stream)
+        metadata = process_image_metadata(image_file.stream, zoom=zoom)
         return jsonify(metadata)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
