@@ -1,11 +1,13 @@
 /**
- * PointGen: High-End Volumetric Point Cloud Engine (v3.0)
- * Modern Cursor-Based Interactivity, Zoom Depth, & Retractable UI
+ * PointGen: High-End Volumetric Point Cloud Engine (v3.2)
+ * Features: Cursor Interactivity, Zoom, Character Inversion, & 2D/3D Mode
  */
 
 let scene, camera, renderer, pointsObject;
 let mode = 'grid';
 window.isFlowEnabled = true;
+window.isInverted = false;
+window.is3D = true;
 const CHARS = "  .·:∵∴∷•";
 let textureAtlas;
 let mouse = new THREE.Vector2();
@@ -35,7 +37,7 @@ function init() {
         autoloadDefaultImage();
         
         animate();
-        console.log("PointGen v3.0: Kinetic Engine Active");
+        console.log("PointGen v3.2: Kinetic Engine Active (WebGL)");
     } catch (e) {
         console.error("Critical Engine Failure:", e);
     }
@@ -52,12 +54,18 @@ const pointVertexShader = `
     uniform vec2 mousePos;
     uniform float mode;
     uniform float flowEnabled;
+    uniform float is3D;
 
     void main() {
         vColor = color;
         vCharIndex = charIndex;
         
         vec3 pos = position;
+        
+        // Dimensional flattening
+        if (is3D < 0.5) {
+            pos.z = 0.0;
+        }
         
         // Flow Interaction (The Poke)
         if (flowEnabled > 0.5) {
@@ -87,11 +95,20 @@ const pointFragmentShader = `
     varying float vDepth;
     uniform sampler2D atlas;
     uniform float atlasCols;
+    uniform float inverted;
+    uniform float numChars;
 
     void main() {
         float size = 1.0 / atlasCols;
-        float x = mod(vCharIndex, atlasCols) * size;
-        float y = floor(vCharIndex / atlasCols) * size;
+        float actualIdx = vCharIndex;
+        
+        // Real Character Inversion: Dark <-> Light
+        if (inverted > 0.5) {
+            actualIdx = (numChars - 1.0) - vCharIndex;
+        }
+        
+        float x = mod(actualIdx, atlasCols) * size;
+        float y = floor(actualIdx / atlasCols) * size;
         
         vec2 charUv = vec2(gl_PointCoord.x, 1.0 - gl_PointCoord.y);
         vec2 uv = vec2(x, 1.0 - y - size) + charUv * size;
@@ -160,7 +177,10 @@ function finalizePointCloud(tw, th, imgData, dData) {
             time: { value: 0 },
             mousePos: { value: new THREE.Vector2(-5000, -5000) },
             mode: { value: 0 },
-            flowEnabled: { value: window.isFlowEnabled ? 1.0 : 0.0 }
+            flowEnabled: { value: window.isFlowEnabled ? 1.0 : 0.0 },
+            inverted: { value: window.isInverted ? 1.0 : 0.0 },
+            is3D: { value: window.is3D ? 1.0 : 0.0 },
+            numChars: { value: CHARS.length }
         },
         vertexShader: pointVertexShader,
         fragmentShader: pointFragmentShader,
@@ -215,6 +235,9 @@ function animate() {
         pointsObject.material.uniforms.time.value = performance.now() * 0.001;
         pointsObject.material.uniforms.mode.value = (mode === 'drift') ? 1 : 0;
         pointsObject.material.uniforms.flowEnabled.value = window.isFlowEnabled ? 1.0 : 0.0;
+        pointsObject.material.uniforms.inverted.value = window.isInverted ? 1.0 : 0.0;
+        pointsObject.material.uniforms.is3D.value = window.is3D ? 1.0 : 0.0;
+        pointsObject.material.uniforms.numChars.value = CHARS.length;
         
         const targetX = (mouse.x * 600);
         const targetY = (mouse.y * 400);
@@ -256,7 +279,6 @@ function checkBackendStatus() {
 }
 
 function setupUI() {
-    // Sidebar Toggle
     const sidebar = document.getElementById('sidebar');
     const toggleBtn = document.getElementById('sidebar-toggle');
     if (toggleBtn && sidebar) {
@@ -265,7 +287,6 @@ function setupUI() {
         };
     }
 
-    // File Input
     document.getElementById('file-input').onchange = (e) => {
         const file = e.target.files[0];
         if (file) {
@@ -279,7 +300,6 @@ function setupUI() {
         }
     };
 
-    // Mode Buttons
     document.querySelectorAll('.mode-btn').forEach(btn => {
         btn.onclick = () => {
             document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
@@ -288,7 +308,6 @@ function setupUI() {
         };
     });
 
-    // Sliders
     const resSlider = document.getElementById('res-slider');
     const resVal = document.getElementById('res-val');
     if (resSlider) {
@@ -315,11 +334,24 @@ function setupUI() {
         };
     }
 
-    // Flow Toggle
     const flowToggle = document.getElementById('flow-toggle');
     if (flowToggle) {
         flowToggle.onchange = (e) => {
             window.isFlowEnabled = e.target.checked;
+        };
+    }
+
+    const invertToggle = document.getElementById('invert-toggle');
+    if (invertToggle) {
+        invertToggle.onchange = (e) => {
+            window.isInverted = e.target.checked;
+        };
+    }
+
+    const dimToggle = document.getElementById('dim-toggle');
+    if (dimToggle) {
+        dimToggle.onchange = (e) => {
+            window.is3D = e.target.checked;
         };
     }
 }
@@ -329,17 +361,13 @@ window.addEventListener('mousemove', (e) => {
     mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
 });
 
-// SCROLL TO ZOOM
 window.addEventListener('wheel', (e) => {
-    // Zoom sensitivity
     const zoomStep = 80;
     if (e.deltaY > 0) {
         targetZoom = Math.min(targetZoom + zoomStep, 3000);
     } else {
         targetZoom = Math.max(targetZoom - zoomStep, 400);
     }
-    
-    // Sync UI Sliders
     const zoomSlider = document.getElementById('zoom-slider');
     const zoomVal = document.getElementById('zoom-val');
     if (zoomSlider) zoomSlider.value = targetZoom;
