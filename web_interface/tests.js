@@ -93,6 +93,11 @@ const AsciiTests = {
         }
         
         this.assert(foundCorrectAlignment, "Asterisk thumb SVG uses y='12' with dominant-baseline for surgical centering");
+        
+        const sliderStyle = window.getComputedStyle(slider);
+        const isTransparent = sliderStyle.backgroundColor === 'rgba(0, 0, 0, 0)' || sliderStyle.backgroundColor === 'transparent';
+        this.assert(isTransparent, "Slider track is transparent (Ink-only aesthetic)");
+        
         console.groupEnd();
     },
 
