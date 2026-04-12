@@ -65,11 +65,43 @@ const AsciiTests = {
         console.groupEnd();
     },
 
+    testSliderOverlay() {
+        console.group("Slider Aesthetics");
+        const slider = document.querySelector('.asterisk-slider');
+        if (!slider) {
+            this.assert(false, "Asterisk slider not found in DOM");
+            console.groupEnd();
+            return;
+        }
+        
+        const styleSheets = document.styleSheets;
+        let foundCorrectAlignment = false;
+        
+        for (let i = 0; i < styleSheets.length; i++) {
+            try {
+                const rules = styleSheets[i].cssRules || styleSheets[i].rules;
+                for (let j = 0; j < rules.length; j++) {
+                    if (rules[j].selectorText && rules[j].selectorText.includes('::-webkit-slider-thumb')) {
+                        const bgImg = rules[j].style.backgroundImage;
+                        // Checking for y='14' which visually centers the asterisk character
+                        if (bgImg && bgImg.includes("y='14'")) {
+                            foundCorrectAlignment = true;
+                        }
+                    }
+                }
+            } catch (e) {}
+        }
+        
+        this.assert(foundCorrectAlignment, "Asterisk thumb SVG uses y='14' for perfect vertical centering");
+        console.groupEnd();
+    },
+
     async run(config) {
         console.log("%c--- RUNNING POINTGEN ORBITAL TDD ---", "color: #58a6ff; font-weight: bold;");
         this.testCharacterMapping(config.chars);
         this.testCursorBasedRotation(config.pointsObject);
         this.testZoomControl(config.camera);
+        this.testSliderOverlay();
         this.testFlowToggle();
         this.testMouseInertia(config.mx, config.my);
         await this.testBackendConnectivity();

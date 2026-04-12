@@ -1,10 +1,10 @@
 :root {
-    --bg-color: #050505;
-    --accent-color: #00f2ff;
-    --accent-glow: rgba(0, 242, 255, 0.4);
-    --text-color: #ffffff;
-    --ui-bg: rgba(10, 10, 10, 0.6);
-    --glass-border: rgba(255, 255, 255, 0.1);
+    --bg-color: #0d1117;
+    --accent-color: #39d353;
+    --accent-glow: rgba(57, 211, 83, 0.4);
+    --text-color: #f0f6fc;
+    --ui-bg: rgba(22, 27, 34, 0.85);
+    --glass-border: rgba(240, 246, 252, 0.1);
     --sidebar-width: 320px;
 }
 
@@ -259,7 +259,7 @@ input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none;
     width: 24px;
     height: 24px;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ctext x='12' y='18' text-anchor='middle' font-family='Outfit' font-weight='800' font-size='30' fill='%2300f2ff'%3E*%3C/text%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ctext x='12' y='14' text-anchor='middle' font-family='Outfit' font-weight='800' font-size='30' fill='%2339d353'%3E*%3C/text%3E%3C/svg%3E");
     background-size: contain;
     background-repeat: no-repeat;
     cursor: pointer;
@@ -270,7 +270,7 @@ input[type="range"]::-webkit-slider-thumb {
 input[type="range"]::-moz-range-thumb {
     width: 24px;
     height: 24px;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ctext x='12' y='18' text-anchor='middle' font-family='Outfit' font-weight='800' font-size='30' fill='%2300f2ff'%3E*%3C/text%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ctext x='12' y='14' text-anchor='middle' font-family='Outfit' font-weight='800' font-size='30' fill='%2300f2ff'%3E*%3C/text%3E%3C/svg%3E");
     background-size: contain;
     background-repeat: no-repeat;
     border: none;
