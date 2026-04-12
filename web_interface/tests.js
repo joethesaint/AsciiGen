@@ -83,8 +83,8 @@ const AsciiTests = {
                 for (let j = 0; j < rules.length; j++) {
                     if (rules[j].selectorText && rules[j].selectorText.includes('::-webkit-slider-thumb')) {
                         const bgImg = rules[j].style.backgroundImage;
-                        // Checking for y='14' which visually centers the asterisk character
-                        if (bgImg && bgImg.includes("y='14'")) {
+                        // Checking for y='12' and central baseline for absolute vertical precision
+                        if (bgImg && bgImg.includes("y='12'") && bgImg.includes("dominant-baseline='central'")) {
                             foundCorrectAlignment = true;
                         }
                     }
@@ -92,7 +92,7 @@ const AsciiTests = {
             } catch (e) {}
         }
         
-        this.assert(foundCorrectAlignment, "Asterisk thumb SVG uses y='14' for perfect vertical centering");
+        this.assert(foundCorrectAlignment, "Asterisk thumb SVG uses y='12' with dominant-baseline for surgical centering");
         console.groupEnd();
     },
 
