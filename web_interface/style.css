@@ -22,6 +22,7 @@
     padding: 0;
     box-sizing: border-box;
     user-select: none;
+    font-family: inherit;
 }
 
 body {
@@ -194,9 +195,10 @@ header p {
     border: 1px solid var(--glass-border);
     color: rgba(255,255,255,0.6);
     padding: 0.8rem 1rem;
-    border-radius: 12px;
+    border-radius: 4px; /* Architectural rigor */
     font-weight: 600;
     font-size: 0.85rem;
+    font-family: 'JetBrains Mono', monospace;
     cursor: pointer;
     transition: 0.2s all ease;
     text-align: left;
@@ -217,9 +219,10 @@ header p {
 .btn {
     width: 100%;
     padding: 1rem;
-    border-radius: 12px;
+    border-radius: 4px; /* Architectural rigor */
     font-weight: 700;
     font-size: 0.9rem;
+    font-family: 'JetBrains Mono', monospace;
     border: none;
     cursor: pointer;
     transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
