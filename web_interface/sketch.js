@@ -444,6 +444,12 @@ function setupUI() {
     });
 
     document.querySelectorAll('#physics-modes .mode-btn').forEach(btn => {
+        btn.onclick = () => {
+            document.querySelectorAll('#physics-modes .mode-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            mode = btn.getAttribute('data-mode');
+        };
+    });
 
     const resetBtn = document.getElementById('reset-view');
     if (resetBtn) {
