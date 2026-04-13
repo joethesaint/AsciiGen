@@ -5,7 +5,7 @@
 
 let scene, camera, renderer, pointsObject;
 let mode = 'grid';
-window.isFlowEnabled = true;
+window.isFlowEnabled = false;
 window.isInverted = false;
 window.is3D = true;
 const CHARS = "  .·:∵∴∷•";
