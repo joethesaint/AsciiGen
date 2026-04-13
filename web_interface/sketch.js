@@ -8,7 +8,9 @@ let mode = 'grid';
 window.isFlowEnabled = false;
 window.isInverted = false;
 window.is3D = true;
-const CHARS = "  .·:∵∴∷•";
+window.renderMode = 'points';
+const CHARS = " .:-=+*#%@"; // Traditional ASCII Density Mapping
+const CHARS_DOTS = "  .·:∵∴∷•"; // Pointillistic Mode
 let textureAtlas;
 let mouse = new THREE.Vector2();
 let targetRotation = new THREE.Euler();
@@ -108,10 +110,16 @@ const pointFragmentShader = `
     uniform float atlasCols;
     uniform float inverted;
     uniform float numChars;
+    uniform float renderMode; // 0=points(dots), 1=ascii, 2=hybrid
 
     void main() {
         float size = 1.0 / atlasCols;
         float actualIdx = vCharIndex;
+        
+        // Mode Redirection
+        if (renderMode < 0.5) { // Points Mode: Overwrite with dots for pure structure
+             actualIdx = min(vCharIndex, 5.0); // Use first few symbols only
+        }
         
         // Real Character Inversion: Dark <-> Light
         if (inverted > 0.5) {
@@ -272,6 +280,7 @@ function finalizePointCloud(positions, colors, charIndices) {
             flowEnabled: { value: window.isFlowEnabled ? 1.0 : 0.0 },
             inverted: { value: window.isInverted ? 1.0 : 0.0 },
             is3D: { value: window.is3D ? 1.0 : 0.0 },
+            renderMode: { value: 0.0 }, // default points
             numChars: { value: CHARS.length }
         },
         vertexShader: pointVertexShader,
@@ -352,6 +361,12 @@ function animate() {
         pointsObject.material.uniforms.flowEnabled.value = window.isFlowEnabled ? 1.0 : 0.0;
         pointsObject.material.uniforms.inverted.value = window.isInverted ? 1.0 : 0.0;
         pointsObject.material.uniforms.is3D.value = window.is3D ? 1.0 : 0.0;
+        
+        let rMode = 0.0;
+        if (window.renderMode === 'ascii') rMode = 1.0;
+        if (window.renderMode === 'hybrid') rMode = 2.0;
+        pointsObject.material.uniforms.renderMode.value = rMode;
+        
         pointsObject.material.uniforms.numChars.value = CHARS.length;
         
         const targetX = (mouse.x * 600);
@@ -420,13 +435,15 @@ function setupUI() {
         }
     };
 
-    document.querySelectorAll('.mode-btn').forEach(btn => {
+    document.querySelectorAll('#render-modes .mode-btn').forEach(btn => {
         btn.onclick = () => {
-            document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('#render-modes .mode-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            mode = btn.getAttribute('data-mode');
+            window.renderMode = btn.getAttribute('data-render');
         };
     });
+
+    document.querySelectorAll('#physics-modes .mode-btn').forEach(btn => {
 
     const resetBtn = document.getElementById('reset-view');
     if (resetBtn) {
