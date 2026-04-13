@@ -174,23 +174,48 @@ function processMeshToPointCloud(mesh) {
     const colors = [];
     const charIndices = [];
 
+    // Virtual Light Source for Architectural Shading
+    const lightDir = new THREE.Vector3(1, 1, 1).normalize();
+
     mesh.traverse((child) => {
         if (child.isMesh) {
-            const geo = child.geometry;
+            const geo = child.geometry.clone();
+            geo.computeVertexNormals(); // Ensure we have normals for shading
+            
             const pos = geo.attributes.position;
+            const norm = geo.attributes.normal;
             const col = geo.attributes.color;
             
-            // Adjust scale and spacing based on complexity
             const scalar = 400; 
 
-            for (let i = 0; i < pos.count; i++) {
-                positions.push(pos.getX(i) * scalar, pos.getY(i) * scalar, pos.getZ(i) * scalar);
+            const stride = Math.max(1, Math.floor(pos.count / 30000)); 
+
+            for (let i = 0; i < pos.count; i += stride) {
+                const x = pos.getX(i);
+                const y = pos.getY(i);
+                const z = pos.getZ(i);
+                
+                positions.push(x * scalar, y * scalar, z * scalar);
+
+                // Shading calculation based on normal
+                const nx = norm.getX(i);
+                const ny = norm.getY(i);
+                const nz = norm.getZ(i);
+                const normal = new THREE.Vector3(nx, ny, nz);
+                
+                // Dot product for diffuse lighting (Architectural Limestone Ink intensity)
+                const intensity = Math.max(0.1, normal.dot(lightDir)); 
+                
                 if (col) {
-                    colors.push(col.getX(i), col.getY(i), col.getZ(i));
+                    colors.push(col.getX(i) * intensity, col.getY(i) * intensity, col.getZ(i) * intensity);
                 } else {
-                    colors.push(1.0, 1.0, 1.0);
+                    // Apply Architectural Limestone base color shaded
+                    const baseR = 230/255, baseG = 230/255, baseB = 220/255;
+                    colors.push(baseR * intensity, baseG * intensity, baseB * intensity);
                 }
-                charIndices.push(Math.floor(Math.random() * (CHARS.length - 1)));
+                
+                // Map intensity to character density (ink weight)
+                charIndices.push(Math.floor(intensity * (CHARS.length - 1)));
             }
         }
     });

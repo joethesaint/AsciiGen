@@ -101,6 +101,32 @@ const AsciiTests = {
         console.groupEnd();
     },
 
+    testMeshContrast(pointsObject) {
+        console.group("Mesh Contrast & Depth");
+        if (!pointsObject || !pointsObject.geometry || !pointsObject.geometry.attributes.charIndex) {
+            this.assert(false, "No point cloud attributes found for contrast test");
+            console.groupEnd();
+            return;
+        }
+        
+        const indices = pointsObject.geometry.attributes.charIndex.array;
+        const uniqueValues = new Set(indices);
+        this.assert(uniqueValues.size > 1, `Mesh utilizes ${uniqueValues.size} distinct characters for depth (Count: ${uniqueValues.size})`);
+        
+        if (pointsObject.geometry.attributes.color) {
+            const colors = pointsObject.geometry.attributes.color.array;
+            let different = false;
+            for(let i=3; i<colors.length; i+=3) {
+                if(colors[i] !== colors[0] || colors[i+1] !== colors[1] || colors[i+2] !== colors[2]) {
+                    different = true;
+                    break;
+                }
+            }
+            this.assert(different, "Point cloud contains color variance (Lighting/Shading Active)");
+        }
+        console.groupEnd();
+    },
+
     async run(config) {
         console.log("%c--- RUNNING POINTGEN ORBITAL TDD ---", "color: #58a6ff; font-weight: bold;");
         this.testCharacterMapping(config.chars);
@@ -108,6 +134,7 @@ const AsciiTests = {
         this.testZoomControl(config.camera);
         this.testSliderOverlay();
         this.testFlowToggle();
+        this.testMeshContrast(config.pointsObject);
         this.testMouseInertia(config.mx, config.my);
         await this.testBackendConnectivity();
     }
