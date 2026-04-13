@@ -122,8 +122,6 @@ const pointFragmentShader = `
 `;
 
 function processImageToPointCloud(img, depthData) {
-    if (pointsObject) scene.remove(pointsObject);
-
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     
@@ -135,15 +133,9 @@ function processImageToPointCloud(img, depthData) {
     ctx.drawImage(img, 0, 0, tw, th);
     const imgData = ctx.getImageData(0, 0, tw, th).data;
 
-    finalizePointCloud(tw, th, imgData, depthData);
-}
-
-function finalizePointCloud(tw, th, imgData, dData) {
-    const geo = new THREE.BufferGeometry();
     const positions = [];
     const colors = [];
     const charIndices = [];
-
     const spacing = 10;
     const xOff = -(tw * spacing) / 2;
     const yOff = (th * spacing) / 2;
@@ -157,7 +149,7 @@ function finalizePointCloud(tw, th, imgData, dData) {
             const bri = (r * 0.21 + g * 0.72 + b * 0.07) * 255;
 
             if (bri > 2) {
-                const dep = (dData && dData !== 'simulated') ? dData[i] : bri;
+                const dep = (depthData && depthData !== 'simulated') ? depthData[i] : bri;
                 positions.push(xOff + x * spacing, yOff - y * spacing, dep * 2.5);
                 colors.push(r, g, b);
                 charIndices.push(Math.floor((bri/255) * (CHARS.length - 1)));
@@ -165,10 +157,55 @@ function finalizePointCloud(tw, th, imgData, dData) {
         }
     }
 
+    finalizePointCloud(positions, colors, charIndices);
+}
+
+function loadGLB(file) {
+    const url = URL.createObjectURL(file);
+    const loader = new THREE.GLTFLoader();
+    loader.load(url, (gltf) => {
+        processMeshToPointCloud(gltf.scene);
+        URL.revokeObjectURL(url);
+    }, undefined, (e) => console.error("GLB Load Error:", e));
+}
+
+function processMeshToPointCloud(mesh) {
+    const positions = [];
+    const colors = [];
+    const charIndices = [];
+
+    mesh.traverse((child) => {
+        if (child.isMesh) {
+            const geo = child.geometry;
+            const pos = geo.attributes.position;
+            const col = geo.attributes.color;
+            
+            // Adjust scale and spacing based on complexity
+            const scalar = 400; 
+
+            for (let i = 0; i < pos.count; i++) {
+                positions.push(pos.getX(i) * scalar, pos.getY(i) * scalar, pos.getZ(i) * scalar);
+                if (col) {
+                    colors.push(col.getX(i), col.getY(i), col.getZ(i));
+                } else {
+                    colors.push(1.0, 1.0, 1.0);
+                }
+                charIndices.push(Math.floor(Math.random() * (CHARS.length - 1)));
+            }
+        }
+    });
+
+    finalizePointCloud(positions, colors, charIndices);
+}
+
+function finalizePointCloud(positions, colors, charIndices) {
+    if (pointsObject) scene.remove(pointsObject);
+    const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
     geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
     geo.setAttribute('charIndex', new THREE.Float32BufferAttribute(charIndices, 1));
 
+    const spacing = 10;
     const mat = new THREE.ShaderMaterial({
         uniforms: {
             atlas: { value: textureAtlas },
@@ -290,13 +327,18 @@ function setupUI() {
     document.getElementById('file-input').onchange = (e) => {
         const file = e.target.files[0];
         if (file) {
-            const reader = new FileReader();
-            reader.onload = (re) => {
-                const img = new Image();
-                img.onload = () => processImageToPointCloud(img, null);
-                img.src = re.target.result;
-            };
-            reader.readAsDataURL(file);
+            const ext = file.name.split('.').pop().toLowerCase();
+            if (ext === 'glb' || ext === 'gltf') {
+                loadGLB(file);
+            } else {
+                const reader = new FileReader();
+                reader.onload = (re) => {
+                    const img = new Image();
+                    img.onload = () => processImageToPointCloud(img, null);
+                    img.src = re.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
         }
     };
 

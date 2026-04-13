@@ -6,6 +6,7 @@
     <title>AsciiGen - Pure Cinematic Engine</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 </head>
 <body>
     <div id="canvas-holder"></div>
@@ -31,7 +32,7 @@
                 <h3>System Controls</h3>
                 <div class="upload-btn-wrapper">
                     <button class="btn btn-primary">Load Source</button>
-                    <input type="file" id="file-input" accept="image/*" />
+                    <input type="file" id="file-input" accept="image/*,.glb,.gltf" />
                 </div>
             </div>
 
