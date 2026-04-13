@@ -10,8 +10,8 @@
     --accent-color: var(--weight-tertiary);
     --accent-glow: rgba(255, 62, 0, 0.3);
     
-    --ui-bg: rgba(10, 11, 12, 0.9);
-    --glass-border: rgba(230, 230, 220, 0.15);
+    --ui-bg: rgba(10, 11, 12, 0.4);
+    --glass-border: rgba(230, 230, 220, 0.25);
     --sidebar-width: 340px;
 }
 
@@ -116,12 +116,12 @@ header p {
 }
 
 .glass {
-    background: var(--ui-bg);
-    backdrop-filter: blur(30px);
-    -webkit-backdrop-filter: blur(30px);
+    background: linear-gradient(135deg, rgba(230, 230, 220, 0.05), rgba(10, 11, 12, 0.4));
+    backdrop-filter: blur(40px) saturate(120%);
+    -webkit-backdrop-filter: blur(40px) saturate(120%);
     border: 1px solid var(--glass-border);
     border-radius: 4px; /* Architectural rigor */
-    box-shadow: 0 30px 60px rgba(0,0,0,0.6);
+    box-shadow: 0 40px 80px rgba(0,0,0,0.6);
 }
 
 .sidebar {
@@ -153,7 +153,7 @@ header p {
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 15px;
+    border-radius: 4px;
     transition: 0.3s all ease;
     pointer-events: auto;
 }
