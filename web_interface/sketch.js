@@ -16,6 +16,7 @@ let currentRotation = new THREE.Euler();
 let targetZoom = 1200;
 window.isAutoRotate = false;
 window.isDragEnabled = true;
+window.isResetting = false;
 let isMouseDown = false;
 let lastMousePos = { x: 0, y: 0 };
 let dragRotation = { x: 0, y: 0 };
@@ -81,9 +82,14 @@ const pointVertexShader = `
             }
         }
         
-        // Kinetic Drift
-        if (mode > 0.5) {
+        // Kinetic Effects (Drift & Vortex)
+        if (mode > 0.5 && mode < 1.5) { // Drift
             pos.z += sin(time * 2.5 + (pos.x + pos.y) * 0.01) * 35.0;
+        } else if (mode > 1.5) { // Vortex
+            float angle = time * 1.5 * (1.0 - length(pos.xy) / 1000.0);
+            float s = sin(angle);
+            float c = cos(angle);
+            pos.xy = mat2(c, -s, s, c) * pos.xy;
         }
 
         vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
@@ -315,6 +321,18 @@ function animate() {
     if (window.isAutoRotate) {
         dragRotation.y += 0.01;
     }
+
+    if (window.isResetting) {
+        dragRotation.x *= 0.9;
+        dragRotation.y *= 0.9;
+        targetZoom += (1200 - targetZoom) * 0.1;
+        if (Math.abs(dragRotation.x) < 0.001 && Math.abs(dragRotation.y) < 0.001 && Math.abs(1200 - targetZoom) < 1) {
+            dragRotation.x = 0;
+            dragRotation.y = 0;
+            targetZoom = 1200;
+            window.isResetting = false;
+        }
+    }
     
     currentRotation.x += (targetRotation.x - currentRotation.x) * 0.05;
     currentRotation.y += (targetRotation.y - currentRotation.y) * 0.05;
@@ -327,7 +345,10 @@ function animate() {
         pointsObject.rotation.y = currentRotation.y;
         
         pointsObject.material.uniforms.time.value = performance.now() * 0.001;
-        pointsObject.material.uniforms.mode.value = (mode === 'drift') ? 1 : 0;
+        let modeVal = 0;
+        if (mode === 'drift') modeVal = 1;
+        if (mode === 'vortex') modeVal = 2;
+        pointsObject.material.uniforms.mode.value = modeVal;
         pointsObject.material.uniforms.flowEnabled.value = window.isFlowEnabled ? 1.0 : 0.0;
         pointsObject.material.uniforms.inverted.value = window.isInverted ? 1.0 : 0.0;
         pointsObject.material.uniforms.is3D.value = window.is3D ? 1.0 : 0.0;
@@ -407,6 +428,13 @@ function setupUI() {
         };
     });
 
+    const resetBtn = document.getElementById('reset-view');
+    if (resetBtn) {
+        resetBtn.onclick = () => {
+            window.isResetting = true;
+        };
+    }
+    
     const resSlider = document.getElementById('res-slider');
     const resVal = document.getElementById('res-val');
     if (resSlider) {
