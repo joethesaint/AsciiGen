@@ -14,6 +14,11 @@ let mouse = new THREE.Vector2();
 let targetRotation = new THREE.Euler();
 let currentRotation = new THREE.Euler();
 let targetZoom = 1200;
+window.isAutoRotate = false;
+window.isDragEnabled = true;
+let isMouseDown = false;
+let lastMousePos = { x: 0, y: 0 };
+let dragRotation = { x: 0, y: 0 };
 
 const ATLAS_SIZE = 512;
 const CHAR_SIZE = 64;
@@ -158,6 +163,24 @@ function processImageToPointCloud(img, depthData) {
     }
 
     finalizePointCloud(positions, colors, charIndices);
+    hide3DControls();
+}
+
+function show3DControls() {
+    const controls = document.getElementById('3d-controls');
+    const badge = document.getElementById('glb-indicator');
+    if (controls) controls.style.display = 'block';
+    if (badge) badge.style.display = 'inline-block';
+}
+
+function hide3DControls() {
+    const controls = document.getElementById('3d-controls');
+    const badge = document.getElementById('glb-indicator');
+    if (controls) controls.style.display = 'none';
+    if (badge) badge.style.display = 'none';
+    window.isAutoRotate = false;
+    const rotateToggle = document.getElementById('auto-rotate-toggle');
+    if (rotateToggle) rotateToggle.checked = false;
 }
 
 function loadGLB(file) {
@@ -165,6 +188,7 @@ function loadGLB(file) {
     const loader = new THREE.GLTFLoader();
     loader.load(url, (gltf) => {
         processMeshToPointCloud(gltf.scene);
+        show3DControls();
         URL.revokeObjectURL(url);
     }, undefined, (e) => console.error("GLB Load Error:", e));
 }
@@ -280,9 +304,17 @@ function autoloadDefaultImage() {
 function animate() {
     requestAnimationFrame(animate);
     
-    // Smooth Cursor-Based Rotation (TILT)
-    targetRotation.y = mouse.x * 0.4;
-    targetRotation.x = -mouse.y * 0.4;
+    // Smooth Cursor-Based Rotation (TILT) or Drag-Based
+    if (window.isDragEnabled && isMouseDown) {
+        // Drag logic handled in event listeners
+    } else {
+        targetRotation.y = mouse.x * 0.4 + dragRotation.y;
+        targetRotation.x = -mouse.y * 0.4 + dragRotation.x;
+    }
+
+    if (window.isAutoRotate) {
+        dragRotation.y += 0.01;
+    }
     
     currentRotation.x += (targetRotation.x - currentRotation.x) * 0.05;
     currentRotation.y += (targetRotation.y - currentRotation.y) * 0.05;
@@ -421,11 +453,42 @@ function setupUI() {
             window.is3D = e.target.checked;
         };
     }
+
+    const autoRotateToggle = document.getElementById('auto-rotate-toggle');
+    if (autoRotateToggle) {
+        autoRotateToggle.onchange = (e) => {
+            window.isAutoRotate = e.target.checked;
+        };
+    }
+
+    const dragToggle = document.getElementById('drag-toggle');
+    if (dragToggle) {
+        dragToggle.onchange = (e) => {
+            window.isDragEnabled = e.target.checked;
+        };
+    }
 }
+
+window.addEventListener('mousedown', (e) => {
+    isMouseDown = true;
+    lastMousePos = { x: e.clientX, y: e.clientY };
+});
+
+window.addEventListener('mouseup', () => {
+    isMouseDown = false;
+});
 
 window.addEventListener('mousemove', (e) => {
     mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+    if (isMouseDown && window.isDragEnabled) {
+        const deltaX = e.clientX - lastMousePos.x;
+        const deltaY = e.clientY - lastMousePos.y;
+        dragRotation.y += deltaX * 0.005;
+        dragRotation.x += deltaY * 0.005;
+        lastMousePos = { x: e.clientX, y: e.clientY };
+    }
 });
 
 window.addEventListener('wheel', (e) => {
