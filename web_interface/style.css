@@ -128,13 +128,31 @@ header p {
 .sidebar {
     width: var(--sidebar-width);
     padding: 2rem;
+    padding-right: 1.5rem; /* Allow space for scrollbar */
     display: flex;
     flex-direction: column;
     gap: 2rem;
     flex-grow: 1;
-    max-height: 80vh;
+    max-height: 90vh; /* Controlled height for scrolling */
+    overflow-y: auto;
+    overflow-x: hidden;
     transition: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
     transform-origin: left;
+}
+
+/* Minimalist Architectural Scrollbar */
+.sidebar::-webkit-scrollbar {
+    width: 3px;
+}
+.sidebar::-webkit-scrollbar-track {
+    background: transparent;
+}
+.sidebar::-webkit-scrollbar-thumb {
+    background: rgba(230, 230, 220, 0.1);
+    border-radius: 4px;
+}
+.sidebar::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-color);
 }
 
 .sidebar.collapsed {
