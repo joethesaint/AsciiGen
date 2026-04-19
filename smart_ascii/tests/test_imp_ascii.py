@@ -99,3 +99,128 @@ def test_imp_ascii_error_handling(tmp_path):
     """Test behavior with non-existent file."""
     with pytest.raises(Exception):
         imp_ascii.smart_convert(str(tmp_path / "non_existent.jpg"))
+
+def test_smart_convert_scale(temp_image_path):
+    """Test conversion with the scale parameter."""
+    # Orig is 20x20. Scale 2.0 -> 40x24 (with 0.6 font_aspect by default if not mocked)
+    art = imp_ascii.smart_convert(temp_image_path, scale=2.0)
+    lines = art.split('\n')
+    assert len(lines[0]) == 40
+
+def test_smart_convert_height_only(temp_image_path, mock_config):
+    """Test providing target_height but not target_width."""
+    mock_config['processing']['font_aspect'] = 0.5
+    # Orig 20x20. Height=10 -> Width = (20/20)*10/0.5 = 20
+    art = imp_ascii.smart_convert(temp_image_path, target_height=10)
+    lines = art.split('\n')
+    assert len(lines[0]) == 20
+
+def test_smart_convert_width_fallback(temp_image_path, mock_config):
+    """Test fallback to config width when no dimensions are provided."""
+    mock_config['output']['width'] = 50
+    art = imp_ascii.smart_convert(temp_image_path)
+    lines = art.split('\n')
+    assert len(lines[0]) == 50
+
+def test_smart_convert_autocontrast(temp_image_path, mock_config):
+    """Test autocontrast branch."""
+    mock_config['processing']['autocontrast'] = True
+    art = imp_ascii.smart_convert(temp_image_path, target_width=10)
+    assert len(art.split('\n')) > 0
+
+def test_add_color_disabled(mock_config):
+    """Ensure add_color returns input art when color is disabled."""
+    mock_config['features']['color'] = False
+    art = "test"
+    assert imp_ascii.add_color(art, None) == art
+
+def test_main_cli_basic(temp_image_path, mocker, mock_config):
+    """Test CLI execution using mocker.patch to simulate command line arguments."""
+    mock_config['output']['save_to_file'] = False
+    mock_config['features']['color'] = False
+    mock_config['features']['borders'] = False
+    
+    mocker.patch('sys.argv', ['imp_ascii.py', temp_image_path])
+    # Mock builtins.print to avoid console clutter
+    mock_print = mocker.patch('builtins.print')
+    
+    # We reload/run the main logic blocks 
+    # Or just call the logic since we are in a test env.
+    # Since main is protected by if __name__ == "__main__", we can't directly call it 
+    # unless we use runpy or manual block execution.
+    # Let's use a small trick by wrapping the main logic into a function if possible,
+    # but since I can't edit the file to add a main() easily without more chunks,
+    # I'll use runpy.
+    
+    import runpy
+    runpy.run_path('smart_ascii/imp_ascii.py', run_name='__main__')
+    
+    # Verify print was called (meaning it processed the image)
+    assert mock_print.called
+
+def test_main_cli_multiple_files_and_save(temp_image_path, mocker, tmp_path):
+    """Test CLI with multiple files, file saving, and color/borders enabled."""
+    import copy
+    test_config = copy.deepcopy(imp_ascii.config)
+    test_config['output']['save_to_file'] = True
+    test_config['features']['color'] = True
+    test_config['features']['borders'] = True
+    
+    # Patch yaml.safe_load so runpy uses our test_config
+    mocker.patch('yaml.safe_load', return_value=test_config)
+    mocker.patch('os.makedirs')
+    mock_open = mocker.patch('builtins.open', mocker.mock_open())
+    mocker.patch('sys.argv', ['imp_ascii.py', temp_image_path])
+    mocker.patch('builtins.print')
+    
+    # Mock Image.open and ensure it returns a mock that supports convert/resize/np.array
+    mock_img = mocker.Mock()
+    mock_img.size = (20, 20)
+    mock_img.convert.return_value = mock_img
+    mock_img.resize.return_value = mock_img
+    mocker.patch('PIL.Image.open', return_value=mock_img)
+    mocker.patch('numpy.array', return_value=np.zeros((10, 10)))
+    
+    import runpy
+    runpy.run_path('smart_ascii/imp_ascii.py', run_name='__main__')
+    
+    assert mock_open.called
+
+def test_main_cli_file_not_found(mocker, mock_config):
+    """Test CLI behavior when a specified file does not exist."""
+    # We must patch at the module level where Path is imported
+    mocker.patch('imp_ascii.Path.exists', return_value=False)
+    mocker.patch('sys.argv', ['imp_ascii.py', 'ghost.jpg'])
+    mock_print = mocker.patch('builtins.print')
+    
+    import runpy
+    runpy.run_path('smart_ascii/imp_ascii.py', run_name='__main__')
+    assert any("Error: File not found" in str(arg) for call in mock_print.call_args_list for arg in call.args)
+
+def test_main_cli_default_input_file(temp_image_path, mocker, mock_config):
+    """Test CLI behavior when no args are provided but input.jpg exists."""
+    mocker.patch('sys.argv', ['imp_ascii.py'])
+    mocker.patch('pathlib.Path.exists', return_value=True)
+    # We need to make sure Image.open works for "input.jpg"
+    mock_open_img = mocker.patch('PIL.Image.open')
+    mocker.patch('builtins.print')
+    
+    import runpy
+    runpy.run_path('smart_ascii/imp_ascii.py', run_name='__main__')
+    assert mock_open_img.called
+
+def test_main_cli_no_args_provided(mocker, mock_config):
+    """Test CLI when no arguments are provided and default file is missing."""
+    mocker.patch('sys.argv', ['imp_ascii.py'])
+    # Ensure Path("input.jpg").exists() is False
+    mocker.patch('pathlib.Path.exists', return_value=False)
+    mocker.patch('builtins.print')
+    
+    # Make sys.exit actually raise to stop execution during runpy
+    mock_exit = mocker.patch('sys.exit', side_effect=SystemExit(1))
+    
+    import runpy
+    with pytest.raises(SystemExit):
+        runpy.run_path('smart_ascii/imp_ascii.py', run_name='__main__')
+    
+    mock_exit.assert_called_with(1)

@@ -12,6 +12,7 @@ import random
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from PIL import Image, ImageFilter, ImageEnhance
+from typing import Dict, Any, List, BinaryIO
 
 app = Flask(__name__, static_folder='../web_interface', static_url_path='/')
 CORS(app)
@@ -29,12 +30,28 @@ def status():
         "service": "PointGen Intelligence Backend",
         "endpoint": "/analyze (POST)"
     })
-
-def process_image_metadata(image_stream, zoom=1.0):
+ 
+def process_image_metadata(image_stream: BinaryIO, zoom: float = 1.0) -> Dict[str, Any]:
     """
-    Extracts structural metadata from an image.
-    Calculates a weight map based on edge detection to inform particle density.
-    Supports 'zoom' which crops to the center of the image.
+    Extracts structural metadata from an image to guide ASCII/particle density.
+
+    Processes an image stream, applies an optional center-crop zoom, and calculates 
+    a structural weight map using edge detection (FIND_EDGES) to inform rendering density.
+
+    Args:
+        image_stream (BinaryIO): The binary data stream of the image to process.
+        zoom (float): The zoom factor (default 1.0). Values > 1.0 crop to the center 
+                      of the image (new dimensions = original / zoom).
+
+    Returns:
+        Dict[str, Any]: Metadata containing:
+            - "width": Final image width after processing.
+            - "height": Final image height after processing.
+            - "weight_map": Flattened list of edge-intensity values (0-255).
+            - "zoom_applied": The zoom factor used for the operation.
+
+    Raises:
+        ValueError: If the image processing fails or the stream is invalid.
     """
     try:
         img = Image.open(image_stream).convert('L')
