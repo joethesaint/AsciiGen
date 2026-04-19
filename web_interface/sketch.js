@@ -9,8 +9,13 @@ window.isFlowEnabled = false;
 window.isInverted = false;
 window.is3D = true;
 window.renderMode = 'points';
-const CHARS = " .:-=+*#%@"; // Traditional ASCII Density Mapping
-const CHARS_DOTS = "  .·:∵∴∷•"; // Pointillistic Mode
+const CHAR_SETS = {
+    'default': " .:-=+*#%@",
+    'reverse': "@%#*+=-:. ",
+    'pointism': "  .·:∵∴∷•",
+    'detailed': " .'`^\\\",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$"
+};
+let currentChars = CHAR_SETS['default'];
 let textureAtlas;
 let mouse = new THREE.Vector2();
 let targetRotation = new THREE.Euler();
@@ -117,13 +122,13 @@ const pointFragmentShader = `
         float actualIdx = vCharIndex;
         
         // Mode Redirection
-        if (renderMode < 0.5) { // Points Mode: Overwrite with dots for pure structure
-             actualIdx = min(vCharIndex, 5.0); // Use first few symbols only
+        if (renderMode < 0.5) { // Points Mode: Strategic reduction to basic symbols
+             actualIdx = min(vCharIndex, 3.0); 
         }
         
         // Real Character Inversion: Dark <-> Light
         if (inverted > 0.5) {
-            actualIdx = (numChars - 1.0) - vCharIndex;
+            actualIdx = (numChars - 1.0) - actualIdx;
         }
         
         float x = mod(actualIdx, atlasCols) * size;
@@ -133,45 +138,103 @@ const pointFragmentShader = `
         vec2 uv = vec2(x, 1.0 - y - size) + charUv * size;
         
         vec4 texColor = texture2D(atlas, uv);
-        if (texColor.r < 0.1) discard; 
+        
+        // Hybrid Mode Logic: Volumetric density with subtle glow and noise
+        if (renderMode > 1.5) {
+            if (texColor.r < 0.05) {
+                // Background points: show a tiny dot instead of discarding
+                float d = distance(gl_PointCoord, vec2(0.5));
+                if (d > 0.05) discard;
+                gl_FragColor = vec4(vColor * 0.5, 0.4);
+                return;
+            }
+        } else {
+            if (texColor.r < 0.1) discard; 
+        }
         
         vec3 color = vColor * 2.5; 
-        gl_FragColor = vec4(color, 1.0);
+        float alpha = 1.0;
+        
+        // ASCII Mode: Pure
+        // Points Mode: Higher contrast
+        if (renderMode < 0.5) {
+            color *= 1.2;
+        }
+        
+        gl_FragColor = vec4(color, alpha);
     }
 `;
 
+/** 
+ * Smart Adaptive Sampling: Higher density on edges, governed by UI slider
+ */
 function processImageToPointCloud(img, depthData) {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     
-    const density = 4;
-    const tw = Math.floor(img.width / density);
-    const th = Math.floor(img.height / density);
-    canvas.width = tw;
-    canvas.height = th;
-    ctx.drawImage(img, 0, 0, tw, th);
-    const imgData = ctx.getImageData(0, 0, tw, th).data;
+    // User-controlled density step (Resolution)
+    const baseDensity = parseInt(document.getElementById('res-slider').value) || 4;
+    
+    // Virtual resolution for the intermediate canvas
+    const sampleWidth = 400; 
+    const sampleHeight = Math.floor(sampleWidth * (img.height / img.width));
+    
+    canvas.width = sampleWidth;
+    canvas.height = sampleHeight;
+    ctx.drawImage(img, 0, 0, sampleWidth, sampleHeight);
+    
+    const imageData = ctx.getImageData(0, 0, sampleWidth, sampleHeight);
+    const data = imageData.data;
+    
+    // Edge Detection Pre-pass for Intensity Detail
+    const edges = new Uint8Array(sampleWidth * sampleHeight);
+    for (let y = 1; y < sampleHeight - 1; y++) {
+        for (let x = 1; x < sampleWidth - 1; x++) {
+            const i = (y * sampleWidth + x) * 4;
+            const bri = (data[i]*0.3 + data[i+1]*0.59 + data[i+2]*0.11);
+            
+            // Simple Sobel-like intensity diff
+            const right = ((data[i+4]*0.3 + data[i+5]*0.59 + data[i+6]*0.11));
+            const down = ((data[i+(sampleWidth*4)]*0.3 + data[i+(sampleWidth*4)+1]*0.59 + data[i+(sampleWidth*4)+2]*0.11));
+            
+            edges[y * sampleWidth + x] = Math.min(255, Math.abs(bri - right) + Math.abs(bri - down));
+        }
+    }
 
     const positions = [];
     const colors = [];
     const charIndices = [];
-    const spacing = 10;
-    const xOff = -(tw * spacing) / 2;
-    const yOff = (th * spacing) / 2;
+    
+    const spacing = 12;
+    const xOff = -(sampleWidth * spacing) / 20; // scaled for 0.1 scale factor
+    const yOff = (sampleHeight * spacing) / 20;
 
-    for (let y = 0; y < th; y++) {
-        for (let x = 0; x < tw; x++) {
-            const i = (x + y * tw) * 4;
-            const r = imgData[i] / 255;
-            const g = imgData[i+1] / 255;
-            const b = imgData[i+2] / 255;
-            const bri = (r * 0.21 + g * 0.72 + b * 0.07) * 255;
+    // Adaptive Loop: Step varies based on edge importance
+    for (let y = 0; y < sampleHeight; y += 1) {
+        for (let x = 0; x < sampleWidth; x += 1) {
+            const i = (y * sampleWidth + x) * 4;
+            const bri = (data[i]*0.3 + data[i+1]*0.59 + data[i+2]*0.11);
+            const edge = edges[y * sampleWidth + x];
 
-            if (bri > 2) {
-                const dep = (depthData && depthData !== 'simulated') ? depthData[i] : bri;
-                positions.push(xOff + x * spacing, yOff - y * spacing, dep * 2.5);
-                colors.push(r, g, b);
-                charIndices.push(Math.floor((bri/255) * (CHARS.length - 1)));
+            // Decide to spawn based on base density and local detail
+            // If near edge, we allow more frequent spawning
+            const edgeWeight = edge / 255;
+            const threshold = baseDensity * (1.1 - edgeWeight * 0.8);
+            
+            if (x % Math.max(1, Math.floor(threshold)) === 0 && y % Math.max(1, Math.floor(threshold)) === 0) {
+                if (bri > 10) {
+                    const r = data[i] / 255;
+                    const g = data[i+1] / 255;
+                    const b = data[i+2] / 255;
+                    
+                    const posX = (x - sampleWidth/2) * spacing;
+                    const posY = -(y - sampleHeight/2) * spacing;
+                    const posZ = bri * 2.0; // depth from brightness
+                    
+                    positions.push(posX, posY, posZ);
+                    colors.push(r, g, b);
+                    charIndices.push(Math.floor((bri/255) * (currentChars.length - 1)));
+                }
             }
         }
     }
@@ -253,7 +316,7 @@ function processMeshToPointCloud(mesh) {
                 }
                 
                 // Map intensity to character density (ink weight)
-                charIndices.push(Math.floor(intensity * (CHARS.length - 1)));
+                charIndices.push(Math.floor(intensity * (currentChars.length - 1)));
             }
         }
     });
@@ -281,7 +344,7 @@ function finalizePointCloud(positions, colors, charIndices) {
             inverted: { value: window.isInverted ? 1.0 : 0.0 },
             is3D: { value: window.is3D ? 1.0 : 0.0 },
             renderMode: { value: 0.0 }, // default points
-            numChars: { value: CHARS.length }
+            numChars: { value: currentChars.length }
         },
         vertexShader: pointVertexShader,
         fragmentShader: pointFragmentShader,
@@ -308,6 +371,7 @@ function autoloadDefaultImage() {
     const defaultPath = 'images/silver.jpg';
     const img = new Image();
     img.onload = () => {
+        window.currentImageBuffer = img;
         fetch('http://127.0.0.1:5000/depth_mock_sim')
             .then(r => r.json())
             .then(d => processImageToPointCloud(img, d.status))
@@ -367,7 +431,7 @@ function animate() {
         if (window.renderMode === 'hybrid') rMode = 2.0;
         pointsObject.material.uniforms.renderMode.value = rMode;
         
-        pointsObject.material.uniforms.numChars.value = CHARS.length;
+        pointsObject.material.uniforms.numChars.value = currentChars.length;
         
         const targetX = (mouse.x * 600);
         const targetY = (mouse.y * 400);
@@ -383,13 +447,16 @@ function createTextureAtlas() {
     const ctx = canvas.getContext('2d');
     ctx.fillStyle = 'black'; ctx.fillRect(0, 0, ATLAS_SIZE, ATLAS_SIZE);
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const COLS_LOCAL = 8;
     ctx.font = `bold ${CHAR_SIZE * 0.8}px monospace`; ctx.fillStyle = 'white';
-    for (let i = 0; i < CHARS.length; i++) {
-        const x = (i % COLS) * CHAR_SIZE + CHAR_SIZE / 2;
-        const y = Math.floor(i / COLS) * CHAR_SIZE + CHAR_SIZE / 2;
-        ctx.fillText(CHARS[i], x, y);
+    for (let i = 0; i < currentChars.length; i++) {
+        const x = (i % COLS_LOCAL) * CHAR_SIZE + CHAR_SIZE / 2;
+        const y = Math.floor(i / COLS_LOCAL) * CHAR_SIZE + CHAR_SIZE / 2;
+        ctx.fillText(currentChars[i], x, y);
     }
+    if (textureAtlas) textureAtlas.dispose();
     textureAtlas = new THREE.CanvasTexture(canvas);
+    if (pointsObject) pointsObject.material.uniforms.atlas.value = textureAtlas;
 }
 
 function checkBackendStatus() {
@@ -427,7 +494,10 @@ function setupUI() {
                 const reader = new FileReader();
                 reader.onload = (re) => {
                     const img = new Image();
-                    img.onload = () => processImageToPointCloud(img, null);
+                    img.onload = () => {
+                        window.currentImageBuffer = img;
+                        processImageToPointCloud(img, null);
+                    };
                     img.src = re.target.result;
                 };
                 reader.readAsDataURL(file);
@@ -440,6 +510,16 @@ function setupUI() {
             document.querySelectorAll('#render-modes .mode-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             window.renderMode = btn.getAttribute('data-render');
+        };
+    });
+
+    document.querySelectorAll('#char-sets .mode-btn').forEach(btn => {
+        btn.onclick = () => {
+            document.querySelectorAll('#char-sets .mode-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const setKey = btn.getAttribute('data-set');
+            currentChars = CHAR_SETS[setKey];
+            createTextureAtlas();
         };
     });
 
@@ -462,9 +542,18 @@ function setupUI() {
     const resVal = document.getElementById('res-val');
     if (resSlider) {
         resSlider.oninput = (e) => {
-            if (resVal) resVal.innerText = e.target.value;
-            if (pointsObject) pointsObject.material.uniforms.pointSize.value = parseFloat(e.target.value) * 2.0;
+            if (resVal) resVal.innerText = (30 - parseInt(e.target.value)); 
+            if (pointsObject) {
+                // Point size adjustment for immediate feedback
+                pointsObject.material.uniforms.pointSize.value = (33 - parseFloat(e.target.value)) * 0.8;
+            }
         };
+        resSlider.onchange = (e) => {
+           // Re-process current image for high-detail structural update
+           if (window.currentImageBuffer) {
+               processImageToPointCloud(window.currentImageBuffer, null);
+           }
+        }
     }
     
     const fleeSlider = document.getElementById('flee-slider');
