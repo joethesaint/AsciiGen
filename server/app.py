@@ -4,15 +4,28 @@ Handles heavy-lifting image processing to guide the p5.js renderer.
 Follows PEP8 and the Zen of Python.
 """
 
-import io
 import base64
-import os
+import hashlib
+import io
 import math
+import os
 import random
-from flask import Flask, request, jsonify
+from typing import Any, BinaryIO, Dict, List
+
+from flask import Flask, jsonify, request
 from flask_cors import CORS
-from PIL import Image, ImageFilter, ImageEnhance
-from typing import Dict, Any, List, BinaryIO
+from PIL import Image, ImageEnhance, ImageFilter
+
+# In-memory Analysis Cache
+ANALYSIS_CACHE: Dict[str, Any] = {}
+
+def get_image_hash(image_stream: BinaryIO, kernel: str, zoom: float) -> str:
+    """Generate a unique key for the image + settings combo."""
+    image_stream.seek(0)
+    data = image_stream.read()
+    image_stream.seek(0)
+    key_base = f"{hashlib.md5(data).hexdigest()}_{kernel}_{zoom}"
+    return hashlib.md5(key_base.encode()).hexdigest()
 
 app = Flask(__name__, static_folder='../web_interface', static_url_path='/')
 CORS(app)
@@ -40,49 +53,45 @@ def status():
         "endpoint": "/analyze (POST)"
     })
  
-def process_image_metadata(image_stream: BinaryIO, zoom: float = 1.0, kernel_name: str = 'edges') -> Dict[str, Any]:
-    """
-    Extracts structural metadata from an image to guide ASCII/particle density.
+def process_image_metadata(
+    image_stream: BinaryIO, zoom: float = 1.0, kernel_name: str = "edges"
+) -> Dict[str, Any]:
+    """Extracts structural metadata from an image to guide ASCII density.
 
-    Processes an image stream, applies an optional center-crop zoom, and calculates 
-    a structural weight map using edge detection (FIND_EDGES) to inform rendering density.
+    Processes an image stream, applies an optional center-crop zoom, and
+    calculates a structural weight map using edge detection informs rendering.
 
     Args:
-        image_stream (BinaryIO): The binary data stream of the image to process.
-        zoom (float): The zoom factor (default 1.0). Values > 1.0 crop to the center 
-                      of the image (new dimensions = original / zoom).
-        kernel_name (str): The name of the convolution kernel to apply (e.g., 'sharpen', 'emboss').
+        image_stream: The binary data stream of the image to process.
+        zoom: The zoom factor (default 1.0). > 1.0 crops to the center.
+        kernel_name: The name of the convolution kernel (e.g., 'sharpen').
 
     Returns:
-        Dict[str, Any]: Metadata containing:
-            - "width": Final image width after processing.
-            - "height": Final image height after processing.
-            - "weight_map": Flattened list of edge-intensity values (0-255).
-            - "zoom_applied": The zoom factor used for the operation.
+        Dict containing width, height, weight_map, and metadata.
 
     Raises:
         ValueError: If the image processing fails or the stream is invalid.
     """
+    # Use cached result if available
+    img_hash = get_image_hash(image_stream, kernel_name, zoom)
+    if img_hash in ANALYSIS_CACHE:
+        return ANALYSIS_CACHE[img_hash]
+
     try:
-        img = Image.open(image_stream).convert('L')
-        
-        # Apply Zoom (Center Crop for Zoom > 1.0, Padding for Zoom < 1.0)
+        img = Image.open(image_stream).convert("L")
+
         w, h = img.size
         # The new dimensions of the "viewport" on the image
         new_w, new_h = w / zoom, h / zoom
-        
+
         # Calculate crop coordinates (can be negative for zoom < 1.0)
-        left = (w - new_w) / 2
-        top = (h - new_h) / 2
-        right = (w + new_w) / 2
-        bottom = (h + new_h) / 2
-        
+        left, top = (w - new_w) / 2, (h - new_h) / 2
+        right, bottom = (w + new_w) / 2, (h + new_h) / 2
+
         if zoom < 1.0:
             # Create a larger canvas and paste original image in the middle
-            # This creates a "Zoomed Out" structural map
-            canvas = Image.new('L', (int(new_w), int(new_h)), color=0)
-            offset_x = int((new_w - w) / 2)
-            offset_y = int((new_h - h) / 2)
+            canvas = Image.new("L", (int(new_w), int(new_h)), color=0)
+            offset_x, offset_y = int((new_w - w) / 2), int((new_h - h) / 2)
             canvas.paste(img, (offset_x, offset_y))
             img = canvas
         else:
@@ -90,36 +99,36 @@ def process_image_metadata(image_stream: BinaryIO, zoom: float = 1.0, kernel_nam
 
         # Target processing resolution (Internal Resolution for Detail Extraction)
         target_size = (800, 800)
-        
-        # Calculate Aspect-Ratio Preserving Resize
-        w, h = img.size
-        # Use active resize for zoom to maintain "nuanced" detail at core focus
-        # This ensures that zooming in doesn't just return a smaller pixel grid, 
-        # but a high-res structural map of the focused area.
-        resample_filter = getattr(Image, 'Resampling', Image).LANCZOS
-        if hasattr(Image, 'ANTIALIAS'):
-            resample_filter = Image.ANTIALIAS
 
-        # If zooming in significantly, we ensure we don't lose sampling resolution
+        # Use modern Resampling constants if available (Pillow 10+)
+        if hasattr(Image, "Resampling"):
+            resample_filter = Image.Resampling.LANCZOS
+        else:
+            resample_filter = getattr(Image, "ANTIALIAS", Image.BICUBIC)
+
+        # Ensure we don't lose sampling resolution
         img = img.resize(target_size, resample_filter)
-        
         width, height = img.size
-        
+
         # Apply Selected Convolution Kernel
         selected_kernel = KERNELS.get(kernel_name, ImageFilter.FIND_EDGES)
         processed_img = img.filter(selected_kernel)
-        
+
         weight_map = list(processed_img.getdata())
-        
-        return {
+
+        result = {
             "width": width,
             "height": height,
             "weight_map": weight_map,
             "zoom_applied": zoom,
-            "kernel_applied": kernel_name
+            "kernel_applied": kernel_name,
         }
+
+        ANALYSIS_CACHE[img_hash] = result
+        return result
     except Exception as e:
-        raise ValueError(f"Failed to process image: {str(e)}")
+        # Avoid losing exception context by utilizing 'from e' or similar logging
+        raise ValueError(f"Failed to process image: {str(e)}") from e
 
 @app.route('/analyze', methods=['POST'])
 def analyze():

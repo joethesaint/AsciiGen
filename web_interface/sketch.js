@@ -19,6 +19,8 @@ let currentChars = CHAR_SETS['default'];
 let activeKernel = 'edges';
 let activeZoom = 1.0;
 let smartWeightMap = null;
+let samplingWorker = new Worker('worker.js');
+let depthEstimator = null;
 let textureAtlas;
 let mouse = new THREE.Vector2();
 let targetZoom = 1200;
@@ -136,21 +138,40 @@ const pointFragmentShader = `
 
     void main() {
         float size = 1.0 / atlasCols;
+        
+        // Multi-Set Selection: Use vEdgeWeight to pick the row (character signature)
+        // Row 0: Dots/Pointism (Flat areas)
+        // Row 1: Standard ASCII
+        // Row 2: Detailed Ink (Edges)
+        float signatureRow = 0.0;
+        if (vEdgeWeight > 0.3) signatureRow = 1.0;
+        if (vEdgeWeight > 0.7) signatureRow = 2.0;
+        
         float actualIdx = vCharIndex;
         
-        // ... (mode logic stays)
+        // Mode Redirection
+        if (renderMode < 0.5) { // Points Mode: Strategic reduction to basic symbols
+             actualIdx = min(vCharIndex, 3.0); 
+        }
+        
+        // Real Character Inversion: Dark <-> Light
+        if (inverted > 0.5) {
+            actualIdx = (numChars - 1.0) - actualIdx;
+        }
         
         // Depth-of-Field (DOF): Pseudo-blur based on Z-distance
-        // Focus is at ~1000 units from camera
         float focus = 1200.0;
         float d = abs(vDepth - focus) * 0.002;
         float blur = clamp(d, 0.0, 0.8);
         
         vec2 charUv = vec2(gl_PointCoord.x, 1.0 - gl_PointCoord.y);
         
-        // Sample with blur offset
-        vec2 uv = vec2(mod(actualIdx, atlasCols) * size, 1.0 - floor(actualIdx / atlasCols) * size - size);
-        vec4 texColor = texture2D(atlas, uv + charUv * size);
+        // Map to Atlas with signatureRow selection
+        float x = mod(actualIdx, atlasCols) * size;
+        float y = signatureRow * size + (floor(actualIdx / atlasCols) * size);
+        vec2 uv = vec2(x, 1.0 - y - size) + charUv * size;
+        
+        vec4 texColor = texture2D(atlas, uv);
         
         if (renderMode < 0.5) {
              if (length(gl_PointCoord - 0.5) > 0.45) discard;
@@ -161,14 +182,11 @@ const pointFragmentShader = `
         
         vec3 color = vColor * 2.5; 
         
-        // Bloom/Glow: Selective brightening of detailed particles
         if (vEdgeWeight > 0.6) {
-            color *= (1.5 + 0.5 * sin(time * 3.0)); // Flickering detail shimmer
+            color *= (1.2 + 0.3 * sin(time * 3.0)); 
         }
         
-        // Apply DOF blur (Simple alpha fade for distance)
         float alpha = 1.0 - blur;
-        
         gl_FragColor = vec4(color, alpha);
     }
 `;
@@ -179,88 +197,54 @@ const pointFragmentShader = `
 function processImageToPointCloud(img, depthData) {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
-    
-    // User-controlled density step (Resolution)
     const baseDensity = parseInt(document.getElementById('res-slider').value) || 4;
     
-    // Virtual resolution for the intermediate canvas
     const sampleWidth = 400; 
     const sampleHeight = Math.floor(sampleWidth * (img.height / img.width));
-    
     canvas.width = sampleWidth;
     canvas.height = sampleHeight;
     ctx.drawImage(img, 0, 0, sampleWidth, sampleHeight);
     
-    const imageData = ctx.getImageData(0, 0, sampleWidth, sampleHeight);
-    const data = imageData.data;
+    const data = ctx.getImageData(0, 0, sampleWidth, sampleHeight).data;
     
-    // Edge Detection Pre-pass for Intensity Detail
+    // Quick local edge fallback
     const edges = new Uint8Array(sampleWidth * sampleHeight);
     for (let y = 1; y < sampleHeight - 1; y++) {
         for (let x = 1; x < sampleWidth - 1; x++) {
             const i = (y * sampleWidth + x) * 4;
             const bri = (data[i]*0.3 + data[i+1]*0.59 + data[i+2]*0.11);
-            
-            // Simple Sobel-like intensity diff
             const right = ((data[i+4]*0.3 + data[i+5]*0.59 + data[i+6]*0.11));
             const down = ((data[i+(sampleWidth*4)]*0.3 + data[i+(sampleWidth*4)+1]*0.59 + data[i+(sampleWidth*4)+2]*0.11));
-            
             edges[y * sampleWidth + x] = Math.min(255, Math.abs(bri - right) + Math.abs(bri - down));
         }
     }
 
-    const positions = [];
-    const colors = [];
-    const charIndices = [];
-    const edgeWeights = [];
-    
-    const spacing = 12;
-    const xOff = -(sampleWidth * spacing) / 20; // scaled for 0.1 scale factor
-    const yOff = (sampleHeight * spacing) / 20;
-
-    // Decide to spawn based on base density and local detail
-    // Use Smart Weight Map from backend if available for nuanced detail
-    for (let y = 0; y < sampleHeight; y += 1) {
-        for (let x = 0; x < sampleWidth; x += 1) {
-            const i = (y * sampleWidth + x) * 4;
-            const bri = (data[i]*0.3 + data[i+1]*0.59 + data[i+2]*0.11);
-            
-            let weightVal = edges[y * sampleWidth + x]; // fallback to local edges
-            
-            if (smartWeightMap && smartWeightMap.data) {
-                // Map local coordinate to backend map coordinate
-                const sx = Math.floor((x / sampleWidth) * smartWeightMap.width);
-                const sy = Math.floor((y / sampleHeight) * smartWeightMap.height);
-                weightVal = smartWeightMap.data[sy * smartWeightMap.width + sx] || weightVal;
-            }
-
-            const edgeWeight = weightVal / 255;
-            const threshold = baseDensity * (1.1 - edgeWeight * 0.9);
-            
-            if (x % Math.max(1, Math.floor(threshold)) === 0 && y % Math.max(1, Math.floor(threshold)) === 0) {
-                if (bri > 10) {
-                    const r = data[i] / 255;
-                    const g = data[i+1] / 255;
-                    const b = data[i+2] / 255;
-                    
-                    const jitterX = (Math.random() - 0.5) * (threshold * 0.4);
-                    const jitterY = (Math.random() - 0.5) * (threshold * 0.4);
-                    
-                    const posX = (x + jitterX - sampleWidth/2) * spacing;
-                    const posY = -(y + jitterY - sampleHeight/2) * spacing;
-                    const posZ = bri * 2.0; // depth from brightness
-                    
-                    positions.push(posX, posY, posZ);
-                    colors.push(r, g, b);
-                    charIndices.push(Math.floor((bri/255) * (currentChars.length - 1)));
-                    edgeWeights.push(edgeWeight);
-                }
-            }
-        }
+    // High-fidelity structural relief depth map
+    const depthMap = new Float32Array(sampleWidth * sampleHeight);
+    for (let i = 0; i < sampleWidth * sampleHeight; i++) {
+        const bri = (data[i*4]*0.3 + data[i*4+1]*0.59 + data[i*4+2]*0.11);
+        const edge = edges[i] / 255;
+        // Volumetric Formula: Z = Base depth + Edge relief focus
+        depthMap[i] = bri * 1.5 + edge * 80.0;
     }
 
-    finalizePointCloud(positions, colors, charIndices, edgeWeights);
-    hide3DControls();
+    samplingWorker.onmessage = function(e) {
+        const { positions, colors, charIndices, edgeWeights } = e.data;
+        finalizePointCloud(positions, colors, charIndices, edgeWeights);
+        hide3DControls();
+    };
+
+    samplingWorker.postMessage({
+        data,
+        sampleWidth,
+        sampleHeight,
+        smartWeightMap,
+        depthMap, // Real structural depth
+        baseDensity,
+        spacing: 12,
+        edges,
+        currentCharsLength: 64 
+    });
 }
 
 function show3DControls() {
@@ -504,11 +488,22 @@ function createTextureAtlas() {
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     const COLS_LOCAL = 8;
     ctx.font = `bold ${CHAR_SIZE * 0.8}px monospace`; ctx.fillStyle = 'white';
-    for (let i = 0; i < currentChars.length; i++) {
-        const x = (i % COLS_LOCAL) * CHAR_SIZE + CHAR_SIZE / 2;
-        const y = Math.floor(i / COLS_LOCAL) * CHAR_SIZE + CHAR_SIZE / 2;
-        ctx.fillText(currentChars[i], x, y);
-    }
+
+    const setsToBake = [
+        CHAR_SETS['pointism'], // Row 0
+        CHAR_SETS['default'],  // Row 1
+        CHAR_SETS['detailed']  // Row 2
+    ];
+
+    setsToBake.forEach((set, rowIdx) => {
+        for (let i = 0; i < Math.min(set.length, 64); i++) {
+            const rowOffset = rowIdx * COLS_LOCAL;
+            const x = (i % COLS_LOCAL) * CHAR_SIZE + CHAR_SIZE / 2;
+            const y = (Math.floor(i / COLS_LOCAL) + rowOffset) * CHAR_SIZE + CHAR_SIZE / 2;
+            ctx.fillText(set[i], x, y);
+        }
+    });
+
     if (textureAtlas) textureAtlas.dispose();
     textureAtlas = new THREE.CanvasTexture(canvas);
     if (pointsObject) pointsObject.material.uniforms.atlas.value = textureAtlas;

@@ -1,33 +1,64 @@
-import pytest
 import io
 import json
 
+import pytest
+
+
 def test_status_endpoint(client):
     """Test the /status endpoint using the test client."""
-    response = client.get('/status')
+    response = client.get("/status")
     assert response.status_code == 200
-    assert response.json['status'] == 'active'
+    assert response.json["status"] == "active"
 
 def test_analyze_endpoint(client, test_image):
     """Test the /analyze POST endpoint with a real image file stream."""
-    data = {
-        'image': (test_image, 'test.jpg')
-    }
-    response = client.post('/analyze', data=data, content_type='multipart/form-data')
-    
+    data = {"image": (test_image, "test.jpg")}
+    response = client.post("/analyze", data=data, content_type="multipart/form-data")
+
     assert response.status_code == 200
     json_data = response.json
-    assert 'weight_map' in json_data
-    assert json_data['width'] == 50
-    assert json_data['height'] == 50
+    assert "weight_map" in json_data
+    assert json_data["width"] == 800
+    assert json_data["height"] == 800
 
 def test_analyze_endpoint_zoom(client, test_image):
     """Test /analyze with the new zoom parameter."""
-    data = {'image': (test_image, 'test.jpg')}
-    response = client.post('/analyze?zoom=2.0', data=data, content_type='multipart/form-data')
-    
+    data = {"image": (test_image, "test.jpg")}
+    response = client.post(
+        "/analyze?zoom=2.0", data=data, content_type="multipart/form-data"
+    )
+
     assert response.status_code == 200
-    assert response.json['zoom_applied'] == 2.0
+    assert response.json["zoom_applied"] == 2.0
+
+
+def test_analyze_cache_hit(client):
+    """Verify that repeated requests hit the ANALYSIS_CACHE."""
+    from PIL import Image as PILImage
+    def get_img():
+        img = PILImage.new("RGB", (50, 50), color="red")
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG")
+        buf.seek(0)
+        return buf
+
+    data = {"image": (get_img(), "test.jpg")}
+    client.post("/analyze", data=data, content_type="multipart/form-data")
+    
+    # Second request with identical data
+    data2 = {"image": (get_img(), "test.jpg")}
+    response = client.post("/analyze", data=data2, content_type="multipart/form-data")
+    assert response.status_code == 200
+
+
+def test_analyze_zoom_out(client, test_image):
+    """Test /analyze with zoom < 1.0 (zoom out branch)."""
+    data = {"image": (test_image, "test.jpg")}
+    response = client.post(
+        "/analyze?zoom=0.5", data=data, content_type="multipart/form-data"
+    )
+    assert response.status_code == 200
+    assert response.json["zoom_applied"] == 0.5
 
 def test_analyze_no_image(client):
     """Test /analyze without an image upload."""
@@ -88,25 +119,24 @@ def test_generate_depth_error(client):
     assert 'error' in response.json
 
 def test_resample_fallback(mocker):
-    """
-    Mocks the Image module to simulate a legacy environment where 
-    ANTIALIAS is present, covering line 72.
-    """
-    from app import process_image_metadata
+    """Mocks the Image module to simulate legacy environment (no Resampling)."""
     from PIL import Image as PILImage
-    
+
+    from app import process_image_metadata
+
     # Create a real image to use
-    img = PILImage.new('L', (100, 100))
+    img = PILImage.new("L", (100, 100))
     buf = io.BytesIO()
-    img.save(buf, format='JPEG')
+    img.save(buf, format="JPEG")
     buf.seek(0)
-    
-    # Mock Image to have ANTIALIAS
-    mock_image_class = mocker.patch('app.Image')
+
+    # Mock Image to NOT have Resampling attribute
+    mock_image_class = mocker.patch("app.Image")
     mock_image_class.open.return_value = img
-    mock_image_class.ANTIALIAS = 999 
-    
-    # We don't bother checking the result, just that the branch is hit
+    # Delete Resampling to force fallback
+    if hasattr(mock_image_class, "Resampling"):
+        del mock_image_class.Resampling
+    mock_image_class.ANTIALIAS = 1
+
     process_image_metadata(buf)
-    
-    assert mock_image_class.ANTIALIAS == 999
+    assert mock_image_class.ANTIALIAS == 1

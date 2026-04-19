@@ -1,0 +1,27 @@
+[project]
+name = "AsciiGen"
+version = "0.1.0"
+description = "High-performance Volumetric 3D ASCII Engine"
+authors = [{name = "Antigravity AI"}]
+dependencies = [
+    "flask",
+    "flask-cors",
+    "pillow",
+    "numpy",
+    "pyyaml",
+    "colorama"
+]
+
+[tool.ruff]
+line-length = 88
+select = ["E", "F", "W", "I", "N", "UP"]
+ignore = ["D100", "D104"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.pytest.ini_options]
+testpaths = ["server/tests", "smart_ascii/tests"]
+python_files = "test_*.py"
+addopts = "-q --tb=short --no-cov-on-fail --cov=server/app.py --cov=smart_ascii/imp_ascii.py --cov=smart_ascii/generate_variants.py"
