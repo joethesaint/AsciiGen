@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 </head>
 <body>
     <div id="canvas-holder"></div>
@@ -58,6 +59,16 @@
             </div>
 
             <div class="section">
+                <h3>Preprocessing Filter</h3>
+                <div class="mode-selector" id="kernel-filters">
+                    <button class="mode-btn active" data-kernel="edges">Standard Edges</button>
+                    <button class="mode-btn" data-kernel="sharpen">Fine Sharpen</button>
+                    <button class="mode-btn" data-kernel="emboss">3D Relief</button>
+                    <button class="mode-btn" data-kernel="gaussian">Gaussian Soften</button>
+                </div>
+            </div>
+
+            <div class="section">
                 <h3>Motion Dynamics</h3>
                 <div class="mode-selector" id="physics-modes">
                     <button class="mode-btn active" data-mode="grid">Static</button>
@@ -88,6 +99,13 @@
                         <span class="val-display" id="zoom-val">1200</span>
                     </div>
                     <input type="range" id="zoom-slider" min="400" max="3000" value="1200" class="asterisk-slider">
+                </div>
+                <div class="control-item">
+                    <div class="label-row">
+                        <label>Source Crop Zoom</label>
+                        <span class="val-display" id="crop-val">1.0</span>
+                    </div>
+                    <input type="range" id="crop-slider" min="0.2" max="10.0" step="0.1" value="1.0" class="asterisk-slider">
                 </div>
             </div>
 

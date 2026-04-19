@@ -3,7 +3,7 @@
  * Features: Cursor Interactivity, Zoom, Character Inversion, & 2D/3D Mode
  */
 
-let scene, camera, renderer, pointsObject;
+let scene, camera, renderer, pointsObject, controls;
 let mode = 'grid';
 window.isFlowEnabled = false;
 window.isInverted = false;
@@ -16,10 +16,11 @@ const CHAR_SETS = {
     'detailed': " .'`^\\\",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$"
 };
 let currentChars = CHAR_SETS['default'];
+let activeKernel = 'edges';
+let activeZoom = 1.0;
+let smartWeightMap = null;
 let textureAtlas;
 let mouse = new THREE.Vector2();
-let targetRotation = new THREE.Euler();
-let currentRotation = new THREE.Euler();
 let targetZoom = 1200;
 window.isAutoRotate = false;
 window.isDragEnabled = true;
@@ -46,6 +47,14 @@ function init() {
         createTextureAtlas();
         setupUI();
         
+        // OrbitControls for stable, professional interaction
+        controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.screenSpacePanning = false;
+        controls.minDistance = 400;
+        controls.maxDistance = 5000;
+        
         checkBackendStatus();
         autoloadDefaultImage();
         
@@ -58,13 +67,16 @@ function init() {
 
 const pointVertexShader = `
     attribute float charIndex;
+    attribute float edgeWeight;
     attribute vec3 color;
     varying vec3 vColor;
     varying float vCharIndex;
+    varying float vEdgeWeight;
     varying float vDepth;
     uniform float time;
     uniform float pointSize;
     uniform vec2 mousePos;
+    uniform float interactionRange;
     uniform float mode;
     uniform float flowEnabled;
     uniform float is3D;
@@ -72,6 +84,7 @@ const pointVertexShader = `
     void main() {
         vColor = color;
         vCharIndex = charIndex;
+        vEdgeWeight = edgeWeight;
         
         vec3 pos = position;
         
@@ -83,9 +96,9 @@ const pointVertexShader = `
         // Flow Interaction (The Poke)
         if (flowEnabled > 0.5) {
             float d = distance(pos.xy, mousePos);
-            if (d < 250.0) {
-                float s = (1.0 - d/250.0);
-                pos.z += s * 150.0;
+            if (d < interactionRange) {
+                float s = (1.0 - d / interactionRange);
+                pos.z += s * (interactionRange * 0.6); 
             }
         }
         
@@ -102,7 +115,9 @@ const pointVertexShader = `
         vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
         vDepth = -mvPosition.z;
         
-        gl_PointSize = pointSize * (2000.0 / -mvPosition.z);
+        // Edge-Aware Sizing: Boost point size in high-detail (edge) areas
+        float sizeMod = 1.0 + vEdgeWeight * 1.5;
+        gl_PointSize = pointSize * sizeMod * (2000.0 / -mvPosition.z);
         gl_Position = projectionMatrix * mvPosition;
     }
 `;
@@ -110,56 +125,49 @@ const pointVertexShader = `
 const pointFragmentShader = `
     varying vec3 vColor;
     varying float vCharIndex;
+    varying float vEdgeWeight;
     varying float vDepth;
     uniform sampler2D atlas;
     uniform float atlasCols;
     uniform float inverted;
     uniform float numChars;
     uniform float renderMode; // 0=points(dots), 1=ascii, 2=hybrid
+    uniform float time;
 
     void main() {
         float size = 1.0 / atlasCols;
         float actualIdx = vCharIndex;
         
-        // Mode Redirection
-        if (renderMode < 0.5) { // Points Mode: Strategic reduction to basic symbols
-             actualIdx = min(vCharIndex, 3.0); 
-        }
+        // ... (mode logic stays)
         
-        // Real Character Inversion: Dark <-> Light
-        if (inverted > 0.5) {
-            actualIdx = (numChars - 1.0) - actualIdx;
-        }
-        
-        float x = mod(actualIdx, atlasCols) * size;
-        float y = floor(actualIdx / atlasCols) * size;
+        // Depth-of-Field (DOF): Pseudo-blur based on Z-distance
+        // Focus is at ~1000 units from camera
+        float focus = 1200.0;
+        float d = abs(vDepth - focus) * 0.002;
+        float blur = clamp(d, 0.0, 0.8);
         
         vec2 charUv = vec2(gl_PointCoord.x, 1.0 - gl_PointCoord.y);
-        vec2 uv = vec2(x, 1.0 - y - size) + charUv * size;
         
-        vec4 texColor = texture2D(atlas, uv);
+        // Sample with blur offset
+        vec2 uv = vec2(mod(actualIdx, atlasCols) * size, 1.0 - floor(actualIdx / atlasCols) * size - size);
+        vec4 texColor = texture2D(atlas, uv + charUv * size);
         
-        // Hybrid Mode Logic: Volumetric density with subtle glow and noise
-        if (renderMode > 1.5) {
-            if (texColor.r < 0.05) {
-                // Background points: show a tiny dot instead of discarding
-                float d = distance(gl_PointCoord, vec2(0.5));
-                if (d > 0.05) discard;
-                gl_FragColor = vec4(vColor * 0.5, 0.4);
-                return;
-            }
+        if (renderMode < 0.5) {
+             if (length(gl_PointCoord - 0.5) > 0.45) discard;
+             texColor = vec4(1.0);
         } else {
-            if (texColor.r < 0.1) discard; 
+             if (texColor.r < 0.1) discard; 
         }
         
         vec3 color = vColor * 2.5; 
-        float alpha = 1.0;
         
-        // ASCII Mode: Pure
-        // Points Mode: Higher contrast
-        if (renderMode < 0.5) {
-            color *= 1.2;
+        // Bloom/Glow: Selective brightening of detailed particles
+        if (vEdgeWeight > 0.6) {
+            color *= (1.5 + 0.5 * sin(time * 3.0)); // Flickering detail shimmer
         }
+        
+        // Apply DOF blur (Simple alpha fade for distance)
+        float alpha = 1.0 - blur;
         
         gl_FragColor = vec4(color, alpha);
     }
@@ -204,22 +212,30 @@ function processImageToPointCloud(img, depthData) {
     const positions = [];
     const colors = [];
     const charIndices = [];
+    const edgeWeights = [];
     
     const spacing = 12;
     const xOff = -(sampleWidth * spacing) / 20; // scaled for 0.1 scale factor
     const yOff = (sampleHeight * spacing) / 20;
 
-    // Adaptive Loop: Step varies based on edge importance
+    // Decide to spawn based on base density and local detail
+    // Use Smart Weight Map from backend if available for nuanced detail
     for (let y = 0; y < sampleHeight; y += 1) {
         for (let x = 0; x < sampleWidth; x += 1) {
             const i = (y * sampleWidth + x) * 4;
             const bri = (data[i]*0.3 + data[i+1]*0.59 + data[i+2]*0.11);
-            const edge = edges[y * sampleWidth + x];
+            
+            let weightVal = edges[y * sampleWidth + x]; // fallback to local edges
+            
+            if (smartWeightMap && smartWeightMap.data) {
+                // Map local coordinate to backend map coordinate
+                const sx = Math.floor((x / sampleWidth) * smartWeightMap.width);
+                const sy = Math.floor((y / sampleHeight) * smartWeightMap.height);
+                weightVal = smartWeightMap.data[sy * smartWeightMap.width + sx] || weightVal;
+            }
 
-            // Decide to spawn based on base density and local detail
-            // If near edge, we allow more frequent spawning
-            const edgeWeight = edge / 255;
-            const threshold = baseDensity * (1.1 - edgeWeight * 0.8);
+            const edgeWeight = weightVal / 255;
+            const threshold = baseDensity * (1.1 - edgeWeight * 0.9);
             
             if (x % Math.max(1, Math.floor(threshold)) === 0 && y % Math.max(1, Math.floor(threshold)) === 0) {
                 if (bri > 10) {
@@ -227,19 +243,23 @@ function processImageToPointCloud(img, depthData) {
                     const g = data[i+1] / 255;
                     const b = data[i+2] / 255;
                     
-                    const posX = (x - sampleWidth/2) * spacing;
-                    const posY = -(y - sampleHeight/2) * spacing;
+                    const jitterX = (Math.random() - 0.5) * (threshold * 0.4);
+                    const jitterY = (Math.random() - 0.5) * (threshold * 0.4);
+                    
+                    const posX = (x + jitterX - sampleWidth/2) * spacing;
+                    const posY = -(y + jitterY - sampleHeight/2) * spacing;
                     const posZ = bri * 2.0; // depth from brightness
                     
                     positions.push(posX, posY, posZ);
                     colors.push(r, g, b);
                     charIndices.push(Math.floor((bri/255) * (currentChars.length - 1)));
+                    edgeWeights.push(edgeWeight);
                 }
             }
         }
     }
 
-    finalizePointCloud(positions, colors, charIndices);
+    finalizePointCloud(positions, colors, charIndices, edgeWeights);
     hide3DControls();
 }
 
@@ -274,6 +294,7 @@ function processMeshToPointCloud(mesh) {
     const positions = [];
     const colors = [];
     const charIndices = [];
+    const edgeWeights = [];
 
     // Virtual Light Source for Architectural Shading
     const lightDir = new THREE.Vector3(1, 1, 1).normalize();
@@ -317,19 +338,21 @@ function processMeshToPointCloud(mesh) {
                 
                 // Map intensity to character density (ink weight)
                 charIndices.push(Math.floor(intensity * (currentChars.length - 1)));
+                edgeWeights.push(intensity); // Intensity acts as edge weight for mesh
             }
         }
     });
 
-    finalizePointCloud(positions, colors, charIndices);
+    finalizePointCloud(positions, colors, charIndices, edgeWeights);
 }
 
-function finalizePointCloud(positions, colors, charIndices) {
+function finalizePointCloud(positions, colors, charIndices, edgeWeights) {
     if (pointsObject) scene.remove(pointsObject);
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
     geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
     geo.setAttribute('charIndex', new THREE.Float32BufferAttribute(charIndices, 1));
+    geo.setAttribute('edgeWeight', new THREE.Float32BufferAttribute(edgeWeights, 1));
 
     const spacing = 10;
     const mat = new THREE.ShaderMaterial({
@@ -339,11 +362,12 @@ function finalizePointCloud(positions, colors, charIndices) {
             pointSize: { value: spacing * 1.5 },
             time: { value: 0 },
             mousePos: { value: new THREE.Vector2(-5000, -5000) },
+            interactionRange: { value: parseFloat(document.getElementById('flee-slider').value) || 250.0 },
             mode: { value: 0 },
             flowEnabled: { value: window.isFlowEnabled ? 1.0 : 0.0 },
             inverted: { value: window.isInverted ? 1.0 : 0.0 },
             is3D: { value: window.is3D ? 1.0 : 0.0 },
-            renderMode: { value: 0.0 }, // default points
+            renderMode: { value: (window.renderMode === 'ascii' ? 1.0 : (window.renderMode === 'hybrid' ? 2.0 : 0.0)) },
             numChars: { value: currentChars.length }
         },
         vertexShader: pointVertexShader,
@@ -367,15 +391,48 @@ function finalizePointCloud(positions, colors, charIndices) {
     }, 500);
 }
 
+/**
+ * Fetches nuanced weight maps from the Python backend
+ */
+async function fetchSmartMetadata(fileObject) {
+    const formData = new FormData();
+    formData.append('image', fileObject);
+    
+    try {
+        const response = await fetch(`http://127.0.0.1:5000/analyze?kernel=${activeKernel}&zoom=${activeZoom}`, {
+            method: 'POST',
+            body: formData
+        });
+        const data = await response.json();
+        smartWeightMap = {
+            data: data.weight_map,
+            width: data.width,
+            height: data.height
+        };
+        console.log(`Smart Metadata Active: Kernel=${activeKernel}`);
+    } catch (e) {
+        console.warn("Backend Analyze Failed: Falling back to local edge detection.");
+        smartWeightMap = null;
+    }
+}
+
 function autoloadDefaultImage() {
     const defaultPath = 'images/silver.jpg';
     const img = new Image();
-    img.onload = () => {
+    img.onload = async () => {
         window.currentImageBuffer = img;
-        fetch('http://127.0.0.1:5000/depth_mock_sim')
-            .then(r => r.json())
-            .then(d => processImageToPointCloud(img, d.status))
-            .catch(() => processImageToPointCloud(img, null));
+        
+        try {
+            const res = await fetch(defaultPath);
+            const blob = await res.blob();
+            // Explicitly set lastFile so kernel/zoom switches don't revert to silver.jpg
+            window.lastFile = new File([blob], "default_silver.jpg", { type: blob.type });
+            await fetchSmartMetadata(window.lastFile);
+        } catch (e) {
+            console.warn("Autoload Smart Metadata Failure:", e);
+        }
+        
+        processImageToPointCloud(img, null);
     };
     img.src = defaultPath;
 }
@@ -383,40 +440,36 @@ function autoloadDefaultImage() {
 function animate() {
     requestAnimationFrame(animate);
     
-    // Smooth Cursor-Based Rotation (TILT) or Drag-Based
-    if (window.isDragEnabled && isMouseDown) {
-        // Drag logic handled in event listeners
-    } else {
-        targetRotation.y = mouse.x * 0.4 + dragRotation.y;
-        targetRotation.x = -mouse.y * 0.4 + dragRotation.x;
+    // Smooth Orbit Interaction
+    if (controls) controls.update();
+
+    if (window.isAutoRotate && controls) {
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 4.0;
+    } else if (controls) {
+        controls.autoRotate = false;
     }
 
-    if (window.isAutoRotate) {
-        dragRotation.y += 0.01;
+    if (window.isResetting && controls) {
+        controls.reset();
+        window.isResetting = false;
+        // Resets sliders
+        const zoomSlider = document.getElementById('zoom-slider');
+        const zoomVal = document.getElementById('zoom-val');
+        if (zoomSlider) zoomSlider.value = 1200;
+        if (zoomVal) zoomVal.innerText = 1200;
+    }
+    
+    // Sync UI Sliders (View Distance) with Controls
+    if (controls) {
+        const zoomVal = document.getElementById('zoom-val');
+        const zoomSlider = document.getElementById('zoom-slider');
+        const dist = Math.round(camera.position.distanceTo(controls.target));
+        if (zoomVal && !window.isResetting) zoomVal.innerText = dist;
+        if (zoomSlider && !window.isResetting) zoomSlider.value = dist;
     }
 
-    if (window.isResetting) {
-        dragRotation.x *= 0.9;
-        dragRotation.y *= 0.9;
-        targetZoom += (1200 - targetZoom) * 0.1;
-        if (Math.abs(dragRotation.x) < 0.001 && Math.abs(dragRotation.y) < 0.001 && Math.abs(1200 - targetZoom) < 1) {
-            dragRotation.x = 0;
-            dragRotation.y = 0;
-            targetZoom = 1200;
-            window.isResetting = false;
-        }
-    }
-    
-    currentRotation.x += (targetRotation.x - currentRotation.x) * 0.05;
-    currentRotation.y += (targetRotation.y - currentRotation.y) * 0.05;
-    
-    // Smooth Zoom
-    camera.position.z += (targetZoom - camera.position.z) * 0.1;
-    
     if (pointsObject) {
-        pointsObject.rotation.x = currentRotation.x;
-        pointsObject.rotation.y = currentRotation.y;
-        
         pointsObject.material.uniforms.time.value = performance.now() * 0.001;
         let modeVal = 0;
         if (mode === 'drift') modeVal = 1;
@@ -436,6 +489,8 @@ function animate() {
         const targetX = (mouse.x * 600);
         const targetY = (mouse.y * 400);
         pointsObject.material.uniforms.mousePos.value.set(targetX, targetY);
+        
+        pointsObject.material.uniforms.interactionRange.value = parseFloat(document.getElementById('flee-slider').value) || 250.0;
     }
     
     renderer.render(scene, camera);
@@ -487,20 +542,23 @@ function setupUI() {
     document.getElementById('file-input').onchange = (e) => {
         const file = e.target.files[0];
         if (file) {
+            window.lastFile = file; // Store for kernel switching
             const ext = file.name.split('.').pop().toLowerCase();
             if (ext === 'glb' || ext === 'gltf') {
                 loadGLB(file);
             } else {
-                const reader = new FileReader();
-                reader.onload = (re) => {
-                    const img = new Image();
-                    img.onload = () => {
-                        window.currentImageBuffer = img;
-                        processImageToPointCloud(img, null);
+                fetchSmartMetadata(file).then(() => {
+                    const reader = new FileReader();
+                    reader.onload = (re) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            window.currentImageBuffer = img;
+                            processImageToPointCloud(img, null);
+                        };
+                        img.src = re.target.result;
                     };
-                    img.src = re.target.result;
-                };
-                reader.readAsDataURL(file);
+                    reader.readAsDataURL(file);
+                });
             }
         }
     };
@@ -520,6 +578,23 @@ function setupUI() {
             const setKey = btn.getAttribute('data-set');
             currentChars = CHAR_SETS[setKey];
             createTextureAtlas();
+        };
+    });
+
+    document.querySelectorAll('#kernel-filters .mode-btn').forEach(btn => {
+        btn.onclick = async () => {
+            document.querySelectorAll('#kernel-filters .mode-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            activeKernel = btn.getAttribute('data-kernel');
+            
+            // Apply kernel to the active source
+            if (window.lastFile) {
+                await fetchSmartMetadata(window.lastFile);
+            }
+            
+            if (window.currentImageBuffer) {
+                processImageToPointCloud(window.currentImageBuffer, null);
+            }
         };
     });
 
@@ -568,8 +643,28 @@ function setupUI() {
     const zoomVal = document.getElementById('zoom-val');
     if (zoomSlider) {
         zoomSlider.oninput = (e) => {
-            targetZoom = parseFloat(e.target.value);
-            if (zoomVal) zoomVal.innerText = Math.round(targetZoom);
+            const dist = parseFloat(e.target.value);
+            // Move camera on its look vector
+            const dir = camera.position.clone().sub(controls.target).normalize();
+            camera.position.copy(controls.target).add(dir.multiplyScalar(dist));
+            if (zoomVal) zoomVal.innerText = Math.round(dist);
+        };
+    }
+
+    const cropSlider = document.getElementById('crop-slider');
+    const cropVal = document.getElementById('crop-val');
+    if (cropSlider) {
+        cropSlider.oninput = (e) => {
+            activeZoom = parseFloat(e.target.value);
+            if (cropVal) cropVal.innerText = activeZoom.toFixed(1);
+        };
+        cropSlider.onchange = async (e) => {
+            if (window.lastFile) {
+                await fetchSmartMetadata(window.lastFile);
+            }
+            if (window.currentImageBuffer) {
+                processImageToPointCloud(window.currentImageBuffer, null);
+            }
         };
     }
 
