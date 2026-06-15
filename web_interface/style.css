@@ -127,11 +127,11 @@ header p {
 
 .sidebar {
     width: var(--sidebar-width);
-    padding: 2rem;
-    padding-right: 1.5rem; /* Allow space for scrollbar */
+    padding: clamp(1rem, 2vw, 2rem);
+    padding-right: clamp(0.5rem, 1.5vw, 1.5rem); /* Allow space for scrollbar */
     display: flex;
     flex-direction: column;
-    gap: 2rem;
+    gap: clamp(1rem, 2vw, 2rem);
     flex-grow: 1;
     max-height: 90vh; /* Controlled height for scrolling */
     overflow-y: auto;
@@ -294,6 +294,10 @@ input[type="range"]::-webkit-slider-thumb {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ctext x='12' y='12' text-anchor='middle' dominant-baseline='central' font-family='JetBrains Mono' font-weight='800' font-size='32' fill='%23ff3e00'%3E*%3C/text%3E%3C/svg%3E");
     background-size: contain;
     background-repeat: no-repeat;
+    background-color: transparent;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
     cursor: pointer;
     filter: drop-shadow(0 0 8px var(--accent-glow));
     margin-top: -11px; /* Center 24px thumb on 2px track */
@@ -305,7 +309,10 @@ input[type="range"]::-moz-range-thumb {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ctext x='12' y='12' text-anchor='middle' dominant-baseline='central' font-family='Outfit' font-weight='800' font-size='32' fill='%23ff3e00'%3E*%3C/text%3E%3C/svg%3E");
     background-size: contain;
     background-repeat: no-repeat;
-    border: none;
+    background-color: transparent;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
     cursor: pointer;
     filter: drop-shadow(0 0 8px var(--accent-glow));
 }
