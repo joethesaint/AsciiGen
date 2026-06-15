@@ -7,11 +7,11 @@ features:
   borders: false
   border_char: '#'
 github:
-  width: 90
+  width: 1305
   lock_aspect: true
   char_set: default
 output:
-  width: 60
+  width: 870
   char_set: default
   save_to_file: true
   filename: output.txt

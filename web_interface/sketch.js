@@ -199,7 +199,7 @@ const pointFragmentShader = `
  * Smart Adaptive Sampling: Higher density on edges, governed by UI slider
  */
 function processImageToPointCloud(img, depthData) {
-    if (!workerReady) return;
+    window.loadStartTime = performance.now();
     show3DControls();
     
     const sampleWidth = img.width > 800 ? 800 : img.width;
@@ -271,6 +271,7 @@ function hide3DControls() {
 }
 
 function loadGLB(file) {
+    window.loadStartTime = performance.now();
     const url = URL.createObjectURL(file);
     const loader = new THREE.GLTFLoader();
     loader.load(url, (gltf) => {
@@ -368,9 +369,17 @@ function finalizePointCloud(positions, colors, charIndices, edgeWeights) {
         depthWrite: true,
         blending: THREE.NormalBlending
     });
-
+    
     pointsObject = new THREE.Points(geo, mat);
     scene.add(pointsObject);
+    
+    if (window.loadStartTime) {
+        const diff = (performance.now() - window.loadStartTime).toFixed(1);
+        const loadEl = document.getElementById('load-time');
+        if (loadEl) loadEl.innerText = `${diff}ms`;
+        window.loadStartTime = null;
+    }
+}
     
     /* 
     setTimeout(() => {
@@ -383,7 +392,6 @@ function finalizePointCloud(positions, colors, charIndices, edgeWeights) {
         });
     }, 500); 
     */
-}
 
 /**
  * Fetches nuanced weight maps from the Python backend
@@ -427,6 +435,7 @@ function autoloadDefaultImage() {
 }
 
 function loadSDFData(url) {
+    window.loadStartTime = performance.now();
     fetch(url)
         .then(r => r.json())
         .then(d => {

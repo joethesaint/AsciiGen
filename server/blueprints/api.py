@@ -22,6 +22,8 @@ async def analyze(image: UploadFile = File(...), zoom: float = Query(1.0), kerne
         metadata = ENGINE.analyze_volumetric(io.BytesIO(content), zoom=zoom, kernel_name=kernel)
         return metadata
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 

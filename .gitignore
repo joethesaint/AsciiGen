@@ -225,3 +225,10 @@ test_eval.js
 test_logs.js
 screenshot.js
 dev.sh
+
+# Temporary diagnostic scripts
+dom_state.html
+test_debug*.js
+test_debug*.py
+test_dummy.png
+test_logs.py
