@@ -8,7 +8,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1"></script>
 </head>
 <body>
     <div id="canvas-holder"></div>
@@ -35,7 +35,20 @@
                 <h3>System Controls</h3>
                 <div class="upload-btn-wrapper">
                     <button class="btn btn-primary">Load Source</button>
-                    <input type="file" id="file-input" accept="image/*,.glb,.gltf" />
+                    <input type="file" id="file-input" accept="image/*" />
+                </div>
+            </div>
+
+            <div class="section">
+                <h3>Morph & Generation</h3>
+                <div class="mode-selector" id="morph-modes" style="margin-bottom: 10px;">
+                    <button class="mode-btn" data-shape="sphere">Sphere</button>
+                    <button class="mode-btn" data-shape="cube">Cube</button>
+                    <button class="mode-btn" data-shape="torus">Torus</button>
+                </div>
+                <div class="upload-btn-wrapper" style="display: flex; gap: 5px;">
+                    <input type="text" id="text-input" placeholder="Type text..." style="flex: 1; padding: 5px; background: rgba(0,0,0,0.5); color: white; border: 1px solid #555; border-radius: 4px;">
+                    <button class="btn btn-primary" id="btn-text-cloud" style="padding: 5px 10px;">Gen</button>
                 </div>
                 <button id="reset-view" class="btn glass" style="margin-top: 1rem; border: 1px solid var(--glass-border); background:rgba(255,255,255,0.02); color: var(--weight-primary);">Reset Perspective</button>
             </div>

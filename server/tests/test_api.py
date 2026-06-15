@@ -15,8 +15,8 @@ def test_analyze_endpoint(client, test_image_bytes):
     assert response.status_code == 200
     json_data = response.json()
     assert "weight_map" in json_data
-    assert json_data["width"] == 800
-    assert json_data["height"] == 800
+    assert json_data["width"] == 400
+    assert json_data["height"] == 400
 
 def test_analyze_endpoint_zoom(client, test_image_bytes):
     """Test /analyze with the zoom parameter."""

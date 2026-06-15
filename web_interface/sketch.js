@@ -366,7 +366,7 @@ function finalizePointCloud(positions, colors, charIndices, edgeWeights) {
     
     setTimeout(() => {
         AsciiTests.run({
-            chars: CHARS,
+            chars: currentChars,
             pointsObject: pointsObject,
             camera: camera,
             mx: mouse.x, 
@@ -403,22 +403,58 @@ async function fetchSmartMetadata(fileObject) {
 function autoloadDefaultImage() {
     const defaultPath = 'images/silver.jpg';
     const img = new Image();
-    img.onload = async () => {
-        window.currentImageBuffer = img;
-        
-        try {
-            const res = await fetch(defaultPath);
-            const blob = await res.blob();
-            // Explicitly set lastFile so kernel/zoom switches don't revert to silver.jpg
-            window.lastFile = new File([blob], "default_silver.jpg", { type: blob.type });
-            await fetchSmartMetadata(window.lastFile);
-        } catch (e) {
-            console.warn("Autoload Smart Metadata Failure:", e);
-        }
-        
-        processImageToPointCloud(img, null);
+    img.onload = () => {
+        fetch('http://127.0.0.1:5000/depth_mock_sim')
+            .then(r => r.json())
+            .then(d => processImageToPointCloud(img, d.status))
+            .catch(() => processImageToPointCloud(img, null));
     };
     img.src = defaultPath;
+}
+
+function loadSDFData(url) {
+    fetch(url)
+        .then(r => r.json())
+        .then(d => {
+            if (pointsObject) scene.remove(pointsObject);
+            const geo = new THREE.BufferGeometry();
+            const positions = [];
+            const colors = [];
+            const charIndices = [];
+            
+            d.points.forEach(pt => {
+                positions.push(pt.x, pt.y, pt.z);
+                colors.push(1.0, 1.0, 1.0); // Default white
+                charIndices.push(Math.floor((pt.bri/255) * (currentChars.length - 1)));
+            });
+            
+            geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+            geo.setAttribute('charIndex', new THREE.Float32BufferAttribute(charIndices, 1));
+            
+            const mat = new THREE.ShaderMaterial({
+                uniforms: {
+                    atlas: { value: textureAtlas },
+                    atlasCols: { value: COLS },
+                    pointSize: { value: 12.0 },
+                    time: { value: 0 },
+                    mousePos: { value: new THREE.Vector2(-5000, -5000) },
+                    mode: { value: mode === 'drift' ? 1 : 0 },
+                    flowEnabled: { value: window.isFlowEnabled ? 1.0 : 0.0 },
+                    inverted: { value: window.isInverted ? 1.0 : 0.0 },
+                    is3D: { value: window.is3D ? 1.0 : 0.0 },
+                    numChars: { value: currentChars.length }
+                },
+                vertexShader: pointVertexShader,
+                fragmentShader: pointFragmentShader,
+                transparent: true,
+                depthWrite: false,
+                blending: THREE.AdditiveBlending
+            });
+            
+            pointsObject = new THREE.Points(geo, mat);
+            scene.add(pointsObject);
+        });
 }
 
 function animate() {
@@ -593,13 +629,30 @@ function setupUI() {
         };
     });
 
-    document.querySelectorAll('#physics-modes .mode-btn').forEach(btn => {
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+        if (!btn.hasAttribute('data-shape')) {
+            btn.onclick = () => {
+                document.querySelectorAll('.mode-btn:not([data-shape])').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                mode = btn.getAttribute('data-mode');
+            };
+        }
+    });
+
+    document.querySelectorAll('#morph-modes .mode-btn').forEach(btn => {
         btn.onclick = () => {
-            document.querySelectorAll('#physics-modes .mode-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            mode = btn.getAttribute('data-mode');
+            const shape = btn.getAttribute('data-shape');
+            loadSDFData(`http://127.0.0.1:5000/morph/${shape}`);
         };
     });
+
+    const btnText = document.getElementById('btn-text-cloud');
+    if (btnText) {
+        btnText.onclick = () => {
+            const txt = document.getElementById('text-input').value || 'PointGen';
+            loadSDFData(`http://127.0.0.1:5000/text-to-cloud?text=${encodeURIComponent(txt)}`);
+        };
+    }
 
     const resetBtn = document.getElementById('reset-view');
     if (resetBtn) {

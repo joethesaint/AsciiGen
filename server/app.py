@@ -3,6 +3,12 @@ AsciiGen Backend - Smart Image Analysis (FastAPI Zen Version)
 Unified implementation using APIRouters and the AsciiEngine.
 """
 
+import sys
+import os
+
+# Add the project root to the python path to allow direct execution
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 import uvicorn
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -37,6 +43,7 @@ app.include_router(system_router)
 
 # Mount the static files
 # In this branch, images have moved inside web_interface/images
+app.mount("/images", StaticFiles(directory="web_interface/images"), name="images")
 app.mount("/", StaticFiles(directory="web_interface", html=True), name="static")
 
 if __name__ == '__main__':

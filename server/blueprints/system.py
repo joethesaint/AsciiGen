@@ -9,18 +9,7 @@ from fastapi import APIRouter
 
 system_router = APIRouter()
 
-
-@system_router.get("/")
-async def root():
-    """Root route confirming API health."""
-    return {
-        "project": "PointGen 3D Volumetric ASCII Engine",
-        "author": "Antigravity",
-        "status": "ready"
-    }
-
-
-@system_router.get("/status")
+@system_router.get("/info")
 async def status():
     """Endpoint for system health checks."""
     return {"status": "active", "uptime": "stable", "engine": "FastAPI Zen"}
