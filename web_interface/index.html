@@ -6,6 +6,9 @@
     <title>AsciiGen - Pure Cinematic Engine</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1"></script>
 </head>
 <body>
     <div id="canvas-holder"></div>
@@ -18,8 +21,9 @@
         <header>
             <h1>Point<span>Gen</span></h1>
             <div class="subtitle-container">
-                <p>Kinetic Pointillism v3.0</p>
+                <p>Kinetic Pointillism v4.0</p>
                 <div id="backend-status-container">
+                    <span id="glb-indicator" style="display:none; background: var(--accent-color); color: #000; padding: 2px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: 800; letter-spacing: 1px;">TRUE 3D</span>
                     <span id="backend-status"></span>
                     <span id="fps-counter">60 FPS</span>
                 </div>
@@ -31,7 +35,37 @@
                 <h3>System Controls</h3>
                 <div class="upload-btn-wrapper">
                     <button class="btn btn-primary">Load Source</button>
-                    <input type="file" id="file-input" accept="image/*" />
+                    <input type="file" id="file-input" accept="image/*,.glb,.gltf" />
+                </div>
+                <button id="reset-view" class="btn glass" style="margin-top: 1rem; border: 1px solid var(--glass-border); background:rgba(255,255,255,0.02); color: var(--weight-primary);">Reset Perspective</button>
+            </div>
+
+            <div class="section">
+                <h3>Visual Mode</h3>
+                <div class="mode-selector" id="render-modes">
+                    <button class="mode-btn active" data-render="points">Points</button>
+                    <button class="mode-btn" data-render="ascii">ASCII</button>
+                    <button class="mode-btn" data-render="hybrid">Hybrid</button>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3>Character Signature</h3>
+                <div class="mode-selector" id="char-sets">
+                    <button class="mode-btn active" data-set="default">Default</button>
+                    <button class="mode-btn" data-set="reverse">Reverse</button>
+                    <button class="mode-btn" data-set="pointism">Pointillistic</button>
+                    <button class="mode-btn" data-set="detailed">Detailed (70ch)</button>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3>Preprocessing Filter</h3>
+                <div class="mode-selector" id="kernel-filters">
+                    <button class="mode-btn active" data-kernel="edges">Standard Edges</button>
+                    <button class="mode-btn" data-kernel="sharpen">Fine Sharpen</button>
+                    <button class="mode-btn" data-kernel="emboss">3D Relief</button>
+                    <button class="mode-btn" data-kernel="gaussian">Gaussian Soften</button>
                 </div>
             </div>
 
@@ -67,13 +101,41 @@
                     </div>
                     <input type="range" id="zoom-slider" min="400" max="3000" value="1200" class="asterisk-slider">
                 </div>
+                <div class="control-item">
+                    <div class="label-row">
+                        <label>Source Crop Zoom</label>
+                        <span class="val-display" id="crop-val">1.0</span>
+                    </div>
+                    <input type="range" id="crop-slider" min="0.2" max="10.0" step="0.1" value="1.0" class="asterisk-slider">
+                </div>
+            </div>
+
+            <div id="3d-controls" style="display:none;">
+                <div class="section toggle-section" style="border-top: 1px solid var(--glass-border); padding-top: 1.5rem; margin-top: 1.5rem;">
+                    <label class="switch-label">
+                        <span>Auto-Orbit</span>
+                        <div class="switch">
+                            <input type="checkbox" id="auto-rotate-toggle">
+                            <span class="slider round"></span>
+                        </div>
+                    </label>
+                </div>
+                <div class="section toggle-section" style="margin-top: 1rem;">
+                    <label class="switch-label">
+                        <span>Drag Interactivity</span>
+                        <div class="switch">
+                            <input type="checkbox" id="drag-toggle" checked>
+                            <span class="slider round"></span>
+                        </div>
+                    </label>
+                </div>
             </div>
 
             <div class="section toggle-section">
                 <label class="switch-label">
                     <span>Flow Reaction</span>
                     <div class="switch">
-                        <input type="checkbox" id="flow-toggle" checked>
+                        <input type="checkbox" id="flow-toggle">
                         <span class="slider round"></span>
                     </div>
                 </label>

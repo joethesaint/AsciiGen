@@ -1,20 +1,26 @@
 import pytest
 import io
-from PIL import Image
+from fastapi.testclient import TestClient
 from app import app
 
-from fastapi.testclient import TestClient
-
-@pytest.fixture
+@pytest.fixture(scope="session")
 def client():
+    """Session-scoped test client for the FastAPI application."""
     with TestClient(app) as client:
         yield client
 
-@pytest.fixture
-def test_image():
-    """Generates a simple 50x50 red image for testing."""
-    img = Image.new('RGB', (50, 50), color='red')
+
+@pytest.fixture(scope="session")
+def test_image_bytes():
+    """Generates a small test image once per session."""
+    from PIL import Image as PILImage
+    img = PILImage.new("RGB", (10, 10), color="red")
     buf = io.BytesIO()
-    img.save(buf, format='JPEG')
-    buf.seek(0)
-    return buf
+    img.save(buf, format="JPEG")
+    return buf.getvalue()
+
+
+@pytest.fixture
+def test_image(test_image_bytes):
+    """Provides a fresh stream from the pre-generated session image bytes."""
+    return io.BytesIO(test_image_bytes)
