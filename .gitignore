@@ -210,3 +210,10 @@ __marimo__/
 *.txt
 *.webp
 *.jpg
+# Temporary diagnostic files
+scratch/
+node_modules/
+package-lock.json
+package.json
+debug_ui.js
+test_playwright*.py
