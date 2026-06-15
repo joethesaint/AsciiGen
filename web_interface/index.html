@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AsciiGen - Pure Cinematic Engine</title>
+    <link rel="icon" href="data:;base64,iVBORw0KGgo=">
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
@@ -40,17 +41,8 @@
             </div>
 
             <div class="section">
-                <h3>Morph & Generation</h3>
-                <div class="mode-selector" id="morph-modes" style="margin-bottom: 10px;">
-                    <button class="mode-btn" data-shape="sphere">Sphere</button>
-                    <button class="mode-btn" data-shape="cube">Cube</button>
-                    <button class="mode-btn" data-shape="torus">Torus</button>
-                </div>
-                <div class="upload-btn-wrapper" style="display: flex; gap: 5px;">
-                    <input type="text" id="text-input" placeholder="Type text..." style="flex: 1; padding: 5px; background: rgba(0,0,0,0.5); color: white; border: 1px solid #555; border-radius: 4px;">
-                    <button class="btn btn-primary" id="btn-text-cloud" style="padding: 5px 10px;">Gen</button>
-                </div>
-                <button id="reset-view" class="btn glass" style="margin-top: 1rem; border: 1px solid var(--glass-border); background:rgba(255,255,255,0.02); color: var(--weight-primary);">Reset Perspective</button>
+                <h3>View Controls</h3>
+                <button id="reset-view" class="btn glass" style="width: 100%; margin-bottom: 0.5rem; border: 1px solid var(--glass-border); background:rgba(255,255,255,0.02); color: var(--weight-primary);">Reset Perspective</button>
             </div>
 
             <div class="section">
@@ -103,9 +95,9 @@
                 <div class="control-item">
                     <div class="label-row">
                         <label>Particle Density</label>
-                        <span class="val-display" id="res-val">8</span>
+                        <span class="val-display" id="res-val">28</span>
                     </div>
-                    <input type="range" id="res-slider" min="2" max="25" value="8" class="asterisk-slider">
+                    <input type="range" id="res-slider" min="1" max="29" value="28" class="asterisk-slider">
                 </div>
                 <div class="control-item">
                     <div class="label-row">
@@ -114,13 +106,7 @@
                     </div>
                     <input type="range" id="zoom-slider" min="400" max="3000" value="1200" class="asterisk-slider">
                 </div>
-                <div class="control-item">
-                    <div class="label-row">
-                        <label>Source Crop Zoom</label>
-                        <span class="val-display" id="crop-val">1.0</span>
-                    </div>
-                    <input type="range" id="crop-slider" min="0.2" max="10.0" step="0.1" value="1.0" class="asterisk-slider">
-                </div>
+
             </div>
 
             <div id="3d-controls" style="display:none;">
@@ -174,7 +160,8 @@
         </div>
     </div>
 
-    <script src="tests.js"></script>
-    <script src="sketch.js"></script>
+    <script src="tests.js?v=2"></script>
+    <script src="UIController.js?v=2"></script>
+    <script src="sketch.js?v=2"></script>
 </body>
 </html>

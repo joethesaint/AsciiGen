@@ -17,7 +17,6 @@ const CHAR_SETS = {
 };
 let currentChars = CHAR_SETS['default'];
 let activeKernel = 'edges';
-let activeZoom = 1.0;
 let smartWeightMap = null;
 let samplingWorker = new Worker('worker.js');
 let depthEstimator = null;
@@ -117,9 +116,17 @@ const pointVertexShader = `
         vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
         vDepth = -mvPosition.z;
         
-        // Edge-Aware Sizing: Boost point size in high-detail (edge) areas
-        float sizeMod = 1.0 + vEdgeWeight * 1.5;
-        gl_PointSize = pointSize * sizeMod * (2000.0 / -mvPosition.z);
+        // Edge-Aware Sizing: Keep text sizes relatively stable to preserve the ASCII grid illusion
+        float sizeMod = 1.0 + vEdgeWeight * 0.5;
+        
+        // In 2D mode, enforce strict uniform sizing for a perfect mosaic grid. 
+        // In 3D mode, allow moderate perspective scaling.
+        if (is3D < 0.5) {
+            gl_PointSize = pointSize;
+        } else {
+            gl_PointSize = pointSize * sizeMod * (1200.0 / -mvPosition.z);
+        }
+        
         gl_Position = projectionMatrix * mvPosition;
     }
 `;
@@ -139,18 +146,10 @@ const pointFragmentShader = `
     void main() {
         float size = 1.0 / atlasCols;
         
-        // Multi-Set Selection: Use vEdgeWeight to pick the row (character signature)
-        // Row 0: Dots/Pointism (Flat areas)
-        // Row 1: Standard ASCII
-        // Row 2: Detailed Ink (Edges)
-        float signatureRow = 0.0;
-        if (vEdgeWeight > 0.3) signatureRow = 1.0;
-        if (vEdgeWeight > 0.7) signatureRow = 2.0;
-        
         float actualIdx = vCharIndex;
         
         // Mode Redirection
-        if (renderMode < 0.5) { // Points Mode: Strategic reduction to basic symbols
+        if (renderMode < 0.5 || (renderMode > 1.5 && vEdgeWeight <= 0.5)) { 
              actualIdx = min(vCharIndex, 3.0); 
         }
         
@@ -166,18 +165,23 @@ const pointFragmentShader = `
         
         vec2 charUv = vec2(gl_PointCoord.x, 1.0 - gl_PointCoord.y);
         
-        // Map to Atlas with signatureRow selection
+        // Map to Atlas properly for the single current set
         float x = mod(actualIdx, atlasCols) * size;
-        float y = signatureRow * size + (floor(actualIdx / atlasCols) * size);
+        float y = floor(actualIdx / atlasCols) * size;
         vec2 uv = vec2(x, 1.0 - y - size) + charUv * size;
         
         vec4 texColor = texture2D(atlas, uv);
         
         if (renderMode < 0.5) {
              if (length(gl_PointCoord - 0.5) > 0.45) discard;
-             texColor = vec4(1.0);
-        } else {
+        } else if (renderMode < 1.5) {
              if (texColor.r < 0.1) discard; 
+        } else {
+             if (vEdgeWeight > 0.5) {
+                 if (texColor.r < 0.1) discard;
+             } else {
+                 if (length(gl_PointCoord - 0.5) > 0.45) discard;
+             }
         }
         
         vec3 color = vColor * 2.5; 
@@ -195,19 +199,21 @@ const pointFragmentShader = `
  * Smart Adaptive Sampling: Higher density on edges, governed by UI slider
  */
 function processImageToPointCloud(img, depthData) {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const baseDensity = parseInt(document.getElementById('res-slider').value) || 4;
+    if (!workerReady) return;
+    show3DControls();
     
-    const sampleWidth = 400; 
+    const sampleWidth = img.width > 800 ? 800 : img.width;
     const sampleHeight = Math.floor(sampleWidth * (img.height / img.width));
+    
+    const canvas = document.createElement('canvas');
     canvas.width = sampleWidth;
     canvas.height = sampleHeight;
+    const ctx = canvas.getContext('2d');
     ctx.drawImage(img, 0, 0, sampleWidth, sampleHeight);
     
     const data = ctx.getImageData(0, 0, sampleWidth, sampleHeight).data;
     
-    // Quick local edge fallback
+    const baseDensity = window.uiController ? (30 - window.uiController.config.density) : 2;
     const edges = new Uint8Array(sampleWidth * sampleHeight);
     for (let y = 1; y < sampleHeight - 1; y++) {
         for (let x = 1; x < sampleWidth - 1; x++) {
@@ -243,7 +249,7 @@ function processImageToPointCloud(img, depthData) {
         baseDensity,
         spacing: 12,
         edges,
-        currentCharsLength: 64 
+        currentCharsLength: currentChars.length 
     });
 }
 
@@ -341,9 +347,10 @@ function finalizePointCloud(positions, colors, charIndices, edgeWeights) {
     const spacing = 10;
     const mat = new THREE.ShaderMaterial({
         uniforms: {
+            numChars: { value: currentChars.length },
+            pointSize: { value: (window.uiController ? window.uiController.config.density : 28) * 0.8 },
             atlas: { value: textureAtlas },
             atlasCols: { value: COLS },
-            pointSize: { value: spacing * 1.5 },
             time: { value: 0 },
             mousePos: { value: new THREE.Vector2(-5000, -5000) },
             interactionRange: { value: parseFloat(document.getElementById('flee-slider').value) || 250.0 },
@@ -357,13 +364,15 @@ function finalizePointCloud(positions, colors, charIndices, edgeWeights) {
         vertexShader: pointVertexShader,
         fragmentShader: pointFragmentShader,
         transparent: true,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending
+        depthTest: true,
+        depthWrite: true,
+        blending: THREE.NormalBlending
     });
 
     pointsObject = new THREE.Points(geo, mat);
     scene.add(pointsObject);
     
+    /* 
     setTimeout(() => {
         AsciiTests.run({
             chars: currentChars,
@@ -372,7 +381,8 @@ function finalizePointCloud(positions, colors, charIndices, edgeWeights) {
             mx: mouse.x, 
             my: mouse.y
         });
-    }, 500);
+    }, 500); 
+    */
 }
 
 /**
@@ -383,7 +393,7 @@ async function fetchSmartMetadata(fileObject) {
     formData.append('image', fileObject);
     
     try {
-        const response = await fetch(`http://127.0.0.1:5000/analyze?kernel=${activeKernel}&zoom=${activeZoom}`, {
+        const response = await fetch(`http://127.0.0.1:5000/analyze?kernel=${activeKernel}&zoom=1.0`, {
             method: 'POST',
             body: formData
         });
@@ -402,14 +412,18 @@ async function fetchSmartMetadata(fileObject) {
 
 function autoloadDefaultImage() {
     const defaultPath = 'images/silver.jpg';
-    const img = new Image();
-    img.onload = () => {
-        fetch('http://127.0.0.1:5000/depth_mock_sim')
-            .then(r => r.json())
-            .then(d => processImageToPointCloud(img, d.status))
-            .catch(() => processImageToPointCloud(img, null));
-    };
-    img.src = defaultPath;
+    fetch(defaultPath).then(r => r.blob()).then(blob => {
+        window.lastFile = new File([blob], 'silver.jpg', { type: 'image/jpeg' });
+        const img = new Image();
+        img.onload = () => {
+            window.currentImageBuffer = img;
+            fetch('http://127.0.0.1:5000/depth_mock_sim')
+                .then(r => r.json())
+                .then(d => processImageToPointCloud(img, d.status))
+                .catch(() => processImageToPointCloud(img, null));
+        };
+        img.src = URL.createObjectURL(blob);
+    });
 }
 
 function loadSDFData(url) {
@@ -422,15 +436,19 @@ function loadSDFData(url) {
             const colors = [];
             const charIndices = [];
             
+            const edgeWeights = [];
+            
             d.points.forEach(pt => {
                 positions.push(pt.x, pt.y, pt.z);
                 colors.push(1.0, 1.0, 1.0); // Default white
                 charIndices.push(Math.floor((pt.bri/255) * (currentChars.length - 1)));
+                edgeWeights.push(1.0); // Default edge weight
             });
             
             geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
             geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
             geo.setAttribute('charIndex', new THREE.Float32BufferAttribute(charIndices, 1));
+            geo.setAttribute('edgeWeight', new THREE.Float32BufferAttribute(edgeWeights, 1));
             
             const mat = new THREE.ShaderMaterial({
                 uniforms: {
@@ -439,17 +457,20 @@ function loadSDFData(url) {
                     pointSize: { value: 12.0 },
                     time: { value: 0 },
                     mousePos: { value: new THREE.Vector2(-5000, -5000) },
+                    interactionRange: { value: 250.0 },
                     mode: { value: mode === 'drift' ? 1 : 0 },
                     flowEnabled: { value: window.isFlowEnabled ? 1.0 : 0.0 },
                     inverted: { value: window.isInverted ? 1.0 : 0.0 },
                     is3D: { value: window.is3D ? 1.0 : 0.0 },
+                    renderMode: { value: (window.renderMode === 'ascii' ? 1.0 : (window.renderMode === 'hybrid' ? 2.0 : 0.0)) },
                     numChars: { value: currentChars.length }
                 },
                 vertexShader: pointVertexShader,
                 fragmentShader: pointFragmentShader,
                 transparent: true,
-                depthWrite: false,
-                blending: THREE.AdditiveBlending
+                depthTest: true,
+                depthWrite: true,
+                blending: THREE.NormalBlending
             });
             
             pointsObject = new THREE.Points(geo, mat);
@@ -457,8 +478,21 @@ function loadSDFData(url) {
         });
 }
 
+let fpsLastTime = performance.now();
+let fpsFrames = 0;
+
 function animate() {
     requestAnimationFrame(animate);
+    
+    // FPS tracking
+    const now = performance.now();
+    fpsFrames++;
+    if (now - fpsLastTime >= 1000) {
+        const fpsEl = document.getElementById('fps-counter');
+        if (fpsEl) fpsEl.innerText = `${fpsFrames} FPS`;
+        fpsFrames = 0;
+        fpsLastTime = now;
+    }
     
     // Smooth Orbit Interaction
     if (controls) controls.update();
@@ -522,41 +556,39 @@ function createTextureAtlas() {
     const ctx = canvas.getContext('2d');
     ctx.fillStyle = 'black'; ctx.fillRect(0, 0, ATLAS_SIZE, ATLAS_SIZE);
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    const COLS_LOCAL = 8;
-    ctx.font = `bold ${CHAR_SIZE * 0.8}px monospace`; ctx.fillStyle = 'white';
-
-    const setsToBake = [
-        CHAR_SETS['pointism'], // Row 0
-        CHAR_SETS['default'],  // Row 1
-        CHAR_SETS['detailed']  // Row 2
-    ];
-
-    setsToBake.forEach((set, rowIdx) => {
-        for (let i = 0; i < Math.min(set.length, 64); i++) {
-            const rowOffset = rowIdx * COLS_LOCAL;
-            const x = (i % COLS_LOCAL) * CHAR_SIZE + CHAR_SIZE / 2;
-            const y = (Math.floor(i / COLS_LOCAL) + rowOffset) * CHAR_SIZE + CHAR_SIZE / 2;
-            ctx.fillText(set[i], x, y);
-        }
-    });
-
+    ctx.font = `${CHAR_SIZE * 0.85}px "Courier New", Courier, monospace`; ctx.fillStyle = 'white';
+    for (let i = 0; i < Math.min(currentChars.length, 64); i++) {
+        const x = (i % COLS) * CHAR_SIZE + CHAR_SIZE / 2;
+        const y = Math.floor(i / COLS) * CHAR_SIZE + CHAR_SIZE / 2;
+        ctx.fillText(currentChars[i], x, y);
+    }
     if (textureAtlas) textureAtlas.dispose();
     textureAtlas = new THREE.CanvasTexture(canvas);
+    textureAtlas.minFilter = THREE.NearestFilter;
+    textureAtlas.magFilter = THREE.NearestFilter;
     if (pointsObject) pointsObject.material.uniforms.atlas.value = textureAtlas;
 }
 
 function checkBackendStatus() {
     fetch('http://127.0.0.1:5000/status').then(r => r.json()).then(data => {
         const dot = document.getElementById('backend-status');
+        const fpsEl = document.getElementById('fps-counter');
         if (dot && data.status === 'active') { 
             dot.style.backgroundColor = '#39d353'; 
             dot.style.boxShadow = '0 0 10px #39d353'; 
         }
+        if (fpsEl && data.status === 'active') {
+            fpsEl.style.color = '#39d353';
+        }
     }).catch(() => {
         const dot = document.getElementById('backend-status');
+        const fpsEl = document.getElementById('fps-counter');
         if (dot) { 
             dot.style.backgroundColor = '#f85149'; 
             dot.style.boxShadow = '0 0 10px #f85149'; 
+        }
+        if (fpsEl) {
+            fpsEl.style.color = '#f85149';
         }
     });
 }
@@ -594,48 +626,47 @@ function setupUI() {
         }
     };
 
-    document.querySelectorAll('#render-modes .mode-btn').forEach(btn => {
-        btn.onclick = () => {
-            document.querySelectorAll('#render-modes .mode-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            window.renderMode = btn.getAttribute('data-render');
-        };
-    });
-
-    document.querySelectorAll('#char-sets .mode-btn').forEach(btn => {
-        btn.onclick = () => {
-            document.querySelectorAll('#char-sets .mode-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            const setKey = btn.getAttribute('data-set');
-            currentChars = CHAR_SETS[setKey];
-            createTextureAtlas();
-        };
-    });
-
-    document.querySelectorAll('#kernel-filters .mode-btn').forEach(btn => {
-        btn.onclick = async () => {
-            document.querySelectorAll('#kernel-filters .mode-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            activeKernel = btn.getAttribute('data-kernel');
-            
-            // Apply kernel to the active source
-            if (window.lastFile) {
-                await fetchSmartMetadata(window.lastFile);
-            }
-            
-            if (window.currentImageBuffer) {
-                processImageToPointCloud(window.currentImageBuffer, null);
-            }
-        };
-    });
-
-    document.querySelectorAll('.mode-btn').forEach(btn => {
-        if (!btn.hasAttribute('data-shape')) {
-            btn.onclick = () => {
-                document.querySelectorAll('.mode-btn:not([data-shape])').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                mode = btn.getAttribute('data-mode');
-            };
+    window.uiController = new EngineUIController();
+    window.uiController.addEventListener('uiChange', async (e) => {
+        const { key, value, config, isFinalChange } = e.detail;
+        
+        // Sync globals
+        window.renderMode = config.renderMode;
+        currentChars = CHAR_SETS[config.charSet];
+        mode = config.physicsMode;
+        window.isFlowEnabled = config.flowEnabled;
+        window.isInverted = config.inverted;
+        window.is3D = config.is3D;
+        window.isAutoRotate = config.autoRotate;
+        window.isDragEnabled = config.dragEnabled;
+        
+        // Trigger specific logic on key changes
+        if (key === 'charSet') createTextureAtlas();
+        
+        if (key === 'kernel' && isFinalChange) {
+            activeKernel = config.kernel;
+            if (window.lastFile) await fetchSmartMetadata(window.lastFile);
+            if (window.currentImageBuffer) processImageToPointCloud(window.currentImageBuffer, null);
+        }
+        
+        if (key === 'density') {
+            if (pointsObject && !isFinalChange) pointsObject.material.uniforms.pointSize.value = value * 0.8;
+            if (isFinalChange && window.currentImageBuffer) processImageToPointCloud(window.currentImageBuffer, null);
+        }
+        
+        if (key === 'zoom') {
+            const dir = camera.position.clone().sub(controls.target).normalize();
+            camera.position.copy(controls.target).add(dir.multiplyScalar(value));
+        }
+        
+        if (isFinalChange) {
+            try {
+                fetch('http://127.0.0.1:5000/update_config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(config)
+                }).catch(() => {});
+            } catch (err) {}
         }
     });
 
@@ -658,96 +689,6 @@ function setupUI() {
     if (resetBtn) {
         resetBtn.onclick = () => {
             window.isResetting = true;
-        };
-    }
-    
-    const resSlider = document.getElementById('res-slider');
-    const resVal = document.getElementById('res-val');
-    if (resSlider) {
-        resSlider.oninput = (e) => {
-            if (resVal) resVal.innerText = (30 - parseInt(e.target.value)); 
-            if (pointsObject) {
-                // Point size adjustment for immediate feedback
-                pointsObject.material.uniforms.pointSize.value = (33 - parseFloat(e.target.value)) * 0.8;
-            }
-        };
-        resSlider.onchange = (e) => {
-           // Re-process current image for high-detail structural update
-           if (window.currentImageBuffer) {
-               processImageToPointCloud(window.currentImageBuffer, null);
-           }
-        }
-    }
-    
-    const fleeSlider = document.getElementById('flee-slider');
-    const fleeVal = document.getElementById('flee-val');
-    if (fleeSlider) {
-        fleeSlider.oninput = (e) => {
-            if (fleeVal) fleeVal.innerText = e.target.value;
-        };
-    }
-
-    const zoomSlider = document.getElementById('zoom-slider');
-    const zoomVal = document.getElementById('zoom-val');
-    if (zoomSlider) {
-        zoomSlider.oninput = (e) => {
-            const dist = parseFloat(e.target.value);
-            // Move camera on its look vector
-            const dir = camera.position.clone().sub(controls.target).normalize();
-            camera.position.copy(controls.target).add(dir.multiplyScalar(dist));
-            if (zoomVal) zoomVal.innerText = Math.round(dist);
-        };
-    }
-
-    const cropSlider = document.getElementById('crop-slider');
-    const cropVal = document.getElementById('crop-val');
-    if (cropSlider) {
-        cropSlider.oninput = (e) => {
-            activeZoom = parseFloat(e.target.value);
-            if (cropVal) cropVal.innerText = activeZoom.toFixed(1);
-        };
-        cropSlider.onchange = async (e) => {
-            if (window.lastFile) {
-                await fetchSmartMetadata(window.lastFile);
-            }
-            if (window.currentImageBuffer) {
-                processImageToPointCloud(window.currentImageBuffer, null);
-            }
-        };
-    }
-
-    const flowToggle = document.getElementById('flow-toggle');
-    if (flowToggle) {
-        flowToggle.onchange = (e) => {
-            window.isFlowEnabled = e.target.checked;
-        };
-    }
-
-    const invertToggle = document.getElementById('invert-toggle');
-    if (invertToggle) {
-        invertToggle.onchange = (e) => {
-            window.isInverted = e.target.checked;
-        };
-    }
-
-    const dimToggle = document.getElementById('dim-toggle');
-    if (dimToggle) {
-        dimToggle.onchange = (e) => {
-            window.is3D = e.target.checked;
-        };
-    }
-
-    const autoRotateToggle = document.getElementById('auto-rotate-toggle');
-    if (autoRotateToggle) {
-        autoRotateToggle.onchange = (e) => {
-            window.isAutoRotate = e.target.checked;
-        };
-    }
-
-    const dragToggle = document.getElementById('drag-toggle');
-    if (dragToggle) {
-        dragToggle.onchange = (e) => {
-            window.isDragEnabled = e.target.checked;
         };
     }
 }

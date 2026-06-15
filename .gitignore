@@ -217,3 +217,11 @@ package-lock.json
 package.json
 debug_ui.js
 test_playwright*.py
+
+# E2E Test Artifacts
+e2e_tests/
+test-results/
+test_eval.js
+test_logs.js
+screenshot.js
+dev.sh

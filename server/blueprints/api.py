@@ -97,3 +97,41 @@ async def text_to_cloud(text: str = Query("PointGen")):
         return {"points": points, "count": len(points)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+import yaml
+from pathlib import Path
+
+@api_router.post("/update_config")
+async def update_config(payload: dict):
+    """Updates the smart_ascii config.yaml based on frontend menu changes."""
+    config_path = Path(__file__).parent.parent.parent / "smart_ascii" / "config.yaml"
+    try:
+        if config_path.exists():
+            with open(config_path, "r") as f:
+                data = yaml.safe_load(f) or {}
+            
+            # Map frontend payload to yaml structure
+            if "charSet" in payload:
+                if "output" in data:
+                    data["output"]["char_set"] = payload["charSet"]
+                if "github" in data:
+                    data["github"]["char_set"] = payload["charSet"]
+                    
+            if "density" in payload:
+                # scale density (2-25) to width roughly
+                width = int(payload["density"] * 30)
+                if "output" in data:
+                    data["output"]["width"] = width
+                if "github" in data:
+                    data["github"]["width"] = int(width * 1.5)
+            
+            with open(config_path, "w") as f:
+                yaml.safe_dump(data, f, sort_keys=False)
+                
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+@api_router.get("/status")
+async def get_status():
+    """Returns the backend status."""
+    return {"status": "active"}

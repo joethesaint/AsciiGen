@@ -1,24 +1,17 @@
-# Processing options
 processing:
   autocontrast: false
   high_quality: false
-  font_aspect: 0.45 # Visually compensates for terminal text being twice as tall as it is wide
-
-# Feature toggles
+  font_aspect: 0.45
 features:
   color: false
   borders: false
-  border_char: "#"
-
-# GitHub profile settings
+  border_char: '#'
 github:
-  width: 540
-  lock_aspect: true  # Force 1012x899 ratio
-  char_set: "pointism"  # Perfect for dot-style aesthetics
-
-# Output configuration
+  width: 90
+  lock_aspect: true
+  char_set: default
 output:
-  width: 360
-  char_set: "pointism"
+  width: 60
+  char_set: default
   save_to_file: true
-  filename: "output.txt"
+  filename: output.txt

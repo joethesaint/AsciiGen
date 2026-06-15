@@ -165,8 +165,8 @@ class AsciiEngine:
         # Apply Convolution
         kernels = {
             "edges": ImageFilter.FIND_EDGES,
-            "sharp": ImageFilter.SHARPEN,
-            "blur": ImageFilter.BLUR,
+            "sharpen": ImageFilter.SHARPEN,
+            "gaussian": ImageFilter.BLUR,
             "emboss": ImageFilter.EMBOSS,
             "relief": ImageFilter.CONTOUR, # High-contrast structural relief
         }
