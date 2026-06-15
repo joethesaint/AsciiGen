@@ -3,10 +3,11 @@ import io
 from PIL import Image
 from app import app
 
+from fastapi.testclient import TestClient
+
 @pytest.fixture
 def client():
-    app.config['TESTING'] = True
-    with app.test_client() as client:
+    with TestClient(app) as client:
         yield client
 
 @pytest.fixture
