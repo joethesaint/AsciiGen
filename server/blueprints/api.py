@@ -1,47 +1,39 @@
 """
 Main Image Processing API for the PointGen 3D frontend.
-Interfaces with the Unified AsciiEngine.
+Converted to FastAPI APIRouter.
 """
 
-from flask import Blueprint, jsonify, request
+import io
+from fastapi import APIRouter, UploadFile, File, Query, HTTPException
 from smart_ascii.engine import AsciiEngine
 
-api_bp = Blueprint("api", __name__)
+api_router = APIRouter()
 ENGINE = AsciiEngine()
 
 
-@api_bp.route("/analyze", methods=["POST"])
-def analyze():
+@api_router.post("/analyze")
+async def analyze(image: UploadFile = File(...), zoom: float = Query(1.0), kernel: str = Query("edges")):
     """API Endpoint for p5.js to get smart metadata for an image."""
-    if "image" not in request.files:
-        return jsonify({"error": "No image uploaded"}), 400
-    
-    image_file = request.files["image"]
-    zoom = float(request.args.get("zoom", 1.0))
-    kernel = request.args.get("kernel", "edges")
-    
     try:
-        metadata = ENGINE.analyze_volumetric(image_file.stream, zoom=zoom, kernel_name=kernel)
-        return jsonify(metadata)
+        content = await image.read()
+        metadata = ENGINE.analyze_volumetric(io.BytesIO(content), zoom=zoom, kernel_name=kernel)
+        return metadata
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-@api_bp.route("/depth", methods=["POST"])
-def generate_depth():
+@api_router.post("/depth")
+async def generate_depth(image: UploadFile = File(...)):
     """Generates a high-contrast grayscale relief map."""
-    if "image" not in request.files:
-        return jsonify({"error": "No image uploaded"}), 400
-    
-    image_file = request.files["image"]
     try:
-        depth_data = ENGINE.generate_depth_map(image_file.stream)
-        return jsonify(depth_data)
+        content = await image.read()
+        depth_data = ENGINE.generate_depth_map(io.BytesIO(content))
+        return depth_data
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-@api_bp.route("/depth_mock_sim", methods=["GET"])
-def depth_mock_sim():
+@api_router.get("/depth_mock_sim")
+async def depth_mock_sim():
     """Returns a pre-calculated mock depth map for the autoload feature."""
-    return jsonify({"depth_map": None, "status": "simulated"})
+    return {"depth_map": None, "status": "simulated"}

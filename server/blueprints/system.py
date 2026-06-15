@@ -1,32 +1,33 @@
 """
 System and Status routes for the PointGen Backend.
+Converted to FastAPI APIRouter.
 """
 
 import random
 import math
-from flask import Blueprint, jsonify
+from fastapi import APIRouter
 
-system_bp = Blueprint("system", __name__)
+system_router = APIRouter()
 
 
-@system_bp.route("/")
-def index():
+@system_router.get("/")
+async def root():
     """Root route confirming API health."""
-    return jsonify({
+    return {
         "project": "PointGen 3D Volumetric ASCII Engine",
         "author": "Antigravity",
         "status": "ready"
-    })
+    }
 
 
-@system_bp.route("/status")
-def status():
+@system_router.get("/status")
+async def status():
     """Endpoint for system health checks."""
-    return jsonify({"status": "active", "uptime": "stable"})
+    return {"status": "active", "uptime": "stable", "engine": "FastAPI Zen"}
 
 
-@system_bp.route("/sdf")
-def get_sdf():
+@system_router.get("/sdf")
+async def get_sdf():
     """Returns signed distance field coordinates for 3D morph targets."""
     points = []
     count = 10000
@@ -39,4 +40,4 @@ def get_sdf():
         z = radius * math.cos(phi)
         points.append({"x": x, "y": y, "z": z, "bri": random.randint(150, 255)})
     
-    return jsonify({"points": points, "count": count})
+    return {"points": points, "count": count}
