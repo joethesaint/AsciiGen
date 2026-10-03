@@ -38,6 +38,7 @@ to GitHub Pages.
 |---|---|
 | [`web_interface/`](./web_interface/) | The app (engine, components, tests) |
 | [`docs/AGENTS.md`](./docs/AGENTS.md) | **Start here if you are an agent or a new contributor**: architecture, rules learned from bugs, environment gotchas |
+| [`docs/POSITIONING.md`](./docs/POSITIONING.md), [`docs/BACKEND.md`](./docs/BACKEND.md) | How we differ from ASCII Magic; when (and how) to add a backend |
 | [`docs/ideas/`](./docs/ideas/README.md) | Parked ideas with plans: dither ASCII, GIF export, formula particles, image→3D / Polyfork |
 | [`legacy/`](./legacy/) | Earlier engines, kept for reference |
 | [`server/`](./server/), [`smart_ascii/`](./smart_ascii/) | Python backend and CLI tool (not used by the current web page) |

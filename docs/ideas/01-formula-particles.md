@@ -1,6 +1,6 @@
 # 01 · Formula particles ("つぶやきProcessing")
 
-**Status:** Parked · **Size:** M
+**Status:** First version shipped (2026-10-04): `web_interface/formula/` with three original formulas (Bloom, Tendrils, Orbitals) and an ASCII view. Next: more formulas, a speed control, sending a formula into the main engine as a source. · **Size:** M
 
 ## References
 

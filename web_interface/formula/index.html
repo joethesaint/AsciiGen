@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Formula Studies · PointGen</title>
+    <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap">
+    <style>
+        /* Same weight-based palette as the main app: obsidian ground, limestone ink, vermilion accent. */
+        :root { --ground: #0a0b0c; --ink: #e6e6dc; --muted: rgba(230, 230, 220, 0.55); --accent: #ff3e00; --edge: rgba(230, 230, 220, 0.22); }
+        * { box-sizing: border-box; margin: 0; }
+        html, body { height: 100%; background: var(--ground); color: var(--ink); font-family: 'JetBrains Mono', ui-monospace, monospace; overflow: hidden; }
+        canvas { display: block; position: fixed; inset: 0; }
+        .bar {
+            position: fixed; left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+            display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center;
+        }
+        .top { position: fixed; top: calc(16px + env(safe-area-inset-top, 0px)); left: 16px; right: 16px; display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+        h1 { font-size: 1rem; font-weight: 700; letter-spacing: 0.02em; }
+        h1 span { color: var(--accent); }
+        .top a { color: var(--muted); font-size: 0.75rem; text-decoration: none; }
+        .top a:hover, .top a:focus-visible { color: var(--ink); }
+        button {
+            font: 500 0.75rem 'JetBrains Mono', monospace; color: var(--muted);
+            background: rgba(10, 11, 12, 0.7); border: 1px solid var(--edge); border-radius: 22px;
+            min-height: 40px; padding: 0 14px; cursor: pointer; backdrop-filter: blur(12px);
+        }
+        button[aria-pressed="true"] { color: var(--ink); border-color: rgba(230, 230, 220, 0.5); box-shadow: inset 0 -2px 0 var(--accent); }
+        button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+        .caption { position: fixed; top: calc(44px + env(safe-area-inset-top, 0px)); left: 16px; color: var(--muted); font-size: 0.7rem; max-width: 60ch; }
+    </style>
+</head>
+<body>
+    <div class="top">
+        <h1>Formula <span>Studies</span></h1>
+        <a href="../">← Back to PointGen</a>
+    </div>
+    <p class="caption" id="caption"></p>
+    <div class="bar" role="toolbar" aria-label="Formula studies">
+        <button data-f="0" aria-pressed="true">Bloom</button>
+        <button data-f="1" aria-pressed="false">Tendrils</button>
+        <button data-f="2" aria-pressed="false">Orbitals</button>
+        <button id="ascii" aria-pressed="false">ASCII view</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="../engine/device.js?v=5.9"></script>
+    <script src="../engine/glyphs.js?v=5.9"></script>
+    <script src="../engine/ascii-pass.js?v=5.9"></script>
+    <script>
+    /*
+     * Formula studies — inspired by the tweet-sized #つぶやきProcessing sketches of
+     * @yuruyurau (each point's position is a closed-form function of its index and
+     * time; nothing is simulated). These three formulas are our own.
+     *
+     * Each point's position is computed in the vertex shader from its index `aIdx`,
+     * so hundreds of thousands of points cost one draw call.
+     */
+    (function () {
+        const FORMULAS = [
+            { name: 'Bloom', caption: 'Golden-angle points, petals breathing outward. r = √(i/N), θ = i·137.5°.' },
+            { name: 'Tendrils', caption: 'Strands of a thousand points each, swaying like hair in slow water.' },
+            { name: 'Orbitals', caption: 'Every point a phase on two coupled loops; the figure folds through itself.' },
+        ];
+
+        const vertexShader = `
+            attribute float aIdx;
+            uniform float uN;
+            uniform float uT;
+            uniform float uF;
+            uniform float uSize;
+            varying float vA;
+            const float TAU = 6.2831853;
+
+            vec3 bloom(float i) {
+                float r = sqrt(i / uN);
+                float a = i * 2.3999632;                       // golden angle, radians
+                float petal = 0.62 + 0.38 * sin(6.0 * a + uT * 0.9 + r * 9.0);
+                float rr = r * petal;
+                return vec3(rr * cos(a), rr * sin(a), 0.35 * sin(r * 11.0 - uT * 1.6));
+            }
+
+            vec3 tendrils(float i) {
+                float strand = floor(i / 1000.0);
+                float s = mod(i, 1000.0) / 1000.0;             // 0 at the crown, 1 at the tip
+                float base = strand * 2.3999632;
+                float spread = 0.15 + 0.85 * s;
+                float sway = sin(s * 9.0 - uT * 1.4 + strand * 0.7) * 0.18 * s;
+                float curl = cos(s * 13.0 + uT * 1.1 + strand) * 0.07 * s;
+                return vec3(sin(base) * spread * 0.55 + sway, 1.0 - 2.0 * s, cos(base) * spread * 0.55 + curl);
+            }
+
+            vec3 orbitals(float i) {
+                float p = fract(i * 0.61803398);                // phase along the first loop
+                float q = fract(i * 0.41421356);                // phase along the second
+                float a = p * TAU, b = q * TAU * 3.0;
+                float d = 0.55 + 0.25 * sin(b + uT * 0.7);
+                return vec3(
+                    d * cos(a) + 0.18 * cos(b * 2.0 - uT),
+                    d * sin(a) * 0.8 + 0.18 * sin(b * 2.0 - uT),
+                    0.35 * sin(a * 3.0 + b - uT * 0.5));
+            }
+
+            void main() {
+                vec3 p = uF < 0.5 ? bloom(aIdx) : (uF < 1.5 ? tendrils(aIdx) : orbitals(aIdx));
+                vec4 mv = modelViewMatrix * vec4(p, 1.0);
+                gl_Position = projectionMatrix * mv;
+                gl_PointSize = clamp(uSize / -mv.z, 1.0, 3.0);
+                vA = 0.45;                                       // p5's stroke alpha 116/255 is about this
+            }
+        `;
+        const fragmentShader = `
+            varying float vA;
+            uniform vec3 uInk;
+            void main() { gl_FragColor = vec4(uInk, vA); }
+        `;
+
+        const tier = Device.pickTier(Device.probe()).tier;
+        const N = { low: 60000, mid: 150000, high: 300000 }[tier.name];
+
+        const renderer = new THREE.WebGLRenderer({ antialias: tier.antialias });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, tier.pixelRatio));
+        renderer.outputEncoding = THREE.sRGBEncoding;
+        renderer.autoClear = false;
+        document.body.prepend(renderer.domElement);
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(40, 1, 0.05, 50);
+        camera.position.set(0, 0, 3.4);
+
+        const idx = new Float32Array(N);
+        for (let i = 0; i < N; i++) idx[i] = i;
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('aIdx', new THREE.BufferAttribute(idx, 1));
+        geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(N * 3), 3)); // draw count only
+        const mat = new THREE.ShaderMaterial({
+            vertexShader, fragmentShader,
+            transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+            uniforms: {
+                uN: { value: N }, uT: { value: 0 }, uF: { value: 0 }, uSize: { value: 6 },
+                uInk: { value: new THREE.Color('#e6e6dc').convertSRGBToLinear() },
+            },
+        });
+        const points = new THREE.Points(geo, mat);
+        points.frustumCulled = false;
+        scene.add(points);
+
+        const ascii = new AsciiPass(renderer);
+        ascii.setAtlas(Glyphs.createGlyphAtlas('classic', 10));
+        let asciiOn = false;
+
+        function resize() {
+            const w = window.innerWidth, h = window.innerHeight;
+            renderer.setSize(w, h);
+            camera.aspect = w / h;
+            // Keep the figure inside narrow (phone) screens as well as wide ones.
+            camera.position.z = w < h ? 3.4 * (h / w) * 0.75 : 3.4;
+            camera.updateProjectionMatrix();
+            ascii.setSize(w, h);
+            ascii.setCellSize(tier.name === 'low' ? 9 : 7);
+            mat.uniforms.uSize.value = 6 * renderer.getPixelRatio();
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        const caption = document.getElementById('caption');
+        function choose(f) {
+            mat.uniforms.uF.value = f;
+            caption.textContent = FORMULAS[f].caption;
+            document.querySelectorAll('[data-f]').forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.f) === f)));
+        }
+        document.querySelectorAll('[data-f]').forEach((b) => b.addEventListener('click', () => choose(Number(b.dataset.f))));
+        const asciiBtn = document.getElementById('ascii');
+        asciiBtn.addEventListener('click', () => { asciiOn = !asciiOn; asciiBtn.setAttribute('aria-pressed', String(asciiOn)); });
+        choose(0);
+
+        const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const start = performance.now();
+        function frame(now) {
+            requestAnimationFrame(frame);
+            const t = reduced ? 4 : (now - start) / 1000;
+            mat.uniforms.uT.value = t;
+            points.rotation.y = reduced ? 0 : t * 0.08;
+            renderer.setRenderTarget(null);
+            renderer.setClearColor(0x0a0b0c, 1);
+            renderer.clear();
+            if (asciiOn) ascii.render(scene, camera);
+            else renderer.render(scene, camera);
+        }
+        requestAnimationFrame(frame);
+    })();
+    </script>
+</body>
+</html>

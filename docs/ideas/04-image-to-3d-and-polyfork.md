@@ -1,6 +1,6 @@
 # 04 · Image → 3D, or Polyfork models
 
-**Status:** Parked · **Size:** S for Polyfork, L for local image-to-3D
+**Status:** Polyfork step 1 shipped (2026-10-04): the free "Brass Service Bell" is in the Source menu, hotlinked from `https://polyfork.dev/cdn/brass-service-bell-5677fb.glb` (CORS `*`). Terms checked: use allowed, no attribution required, **no redistribution**, so never commit Polyfork files. Live knobs (`.mjs` `createAsset()`) are **Pro only** ($149/yr); free assets get remote "remix bakes" (40/hour anonymously). Image-to-3D still parked. · **Size:** S for Polyfork, L for local image-to-3D
 
 ## A. image-to-3dlab (@Stefan_3D_AI)
 

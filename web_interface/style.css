@@ -819,3 +819,6 @@ header h1 .lm {
 @media (prefers-reduced-motion: reduce) {
     header h1 .lm { animation: none; filter: drop-shadow(0 0 6px rgba(230, 230, 220, 0.25)); }
 }
+
+/* Link to the standalone formula page; styled like the Reset view button above it. */
+.studies-link { display: block; text-align: center; text-decoration: none; color: var(--weight-primary); margin-bottom: 0.5rem; }

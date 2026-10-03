@@ -7,7 +7,7 @@
     <link rel="icon" href="data:;base64,iVBORw0KGgo=">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap">
-    <link rel="stylesheet" href="style.css?v=5.8">
+    <link rel="stylesheet" href="style.css?v=5.9">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
@@ -82,6 +82,12 @@
                             <button type="button" class="morph-item" role="menuitem" data-sample="images/roman_bust.png" data-close>
                                 <svg class="morph-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m20.5 16-5-5-8 8.5"/></svg>
                                 <span>Sample image · bust</span>
+                            </button>
+                            <!-- Polyfork free asset, hotlinked from their CDN: their terms allow use
+                                 but not redistribution, so the file is never committed here. -->
+                            <button type="button" class="morph-item" role="menuitem" data-sample="https://polyfork.dev/cdn/brass-service-bell-5677fb.glb" data-close>
+                                <svg class="morph-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16c0-5 2.5-8.5 6-8.5s6 3.5 6 8.5z"/><path d="M4 16h16M12 7.5V5M10.5 5h3M11 19h2"/></svg>
+                                <span>Polyfork · brass bell</span>
                             </button>
                         </div>
                     </div>
@@ -173,6 +179,7 @@
             <div class="section">
                 <h3>View</h3>
                 <button id="reset-view" class="btn glass">Reset view</button>
+                <a class="btn glass studies-link" href="formula/">Formula studies →</a>
                 <div class="toggle-section">
                     <label class="switch-label"><span>Auto-orbit</span>
                         <div class="switch"><input type="checkbox" id="orbit"><span class="slider round"></span></div>
@@ -182,15 +189,15 @@
         </div>
     </div>
 
-    <script src="engine/device.js?v=5.8"></script>
-    <script src="engine/glyphs.js?v=5.8"></script>
-    <script src="engine/sampler.js?v=5.8"></script>
-    <script src="engine/ascii-pass.js?v=5.8"></script>
-    <script src="engine/particles.js?v=5.8"></script>
-    <script src="engine/sources.js?v=5.8"></script>
-    <script src="components/liquid-toggle.js?v=5.8"></script>
-    <script src="components/morph-menu.js?v=5.8"></script>
-    <script src="app.js?v=5.8"></script>
-    <script type="module" src="components/thinking-orb.js?v=5.8"></script>
+    <script src="engine/device.js?v=5.9"></script>
+    <script src="engine/glyphs.js?v=5.9"></script>
+    <script src="engine/sampler.js?v=5.9"></script>
+    <script src="engine/ascii-pass.js?v=5.9"></script>
+    <script src="engine/particles.js?v=5.9"></script>
+    <script src="engine/sources.js?v=5.9"></script>
+    <script src="components/liquid-toggle.js?v=5.9"></script>
+    <script src="components/morph-menu.js?v=5.9"></script>
+    <script src="app.js?v=5.9"></script>
+    <script type="module" src="components/thinking-orb.js?v=5.9"></script>
 </body>
 </html>
