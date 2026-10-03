@@ -498,16 +498,6 @@ input[type="range"]::-moz-range-progress { height: 1px; background: rgba(255, 62
 input[type="range"]:hover::-moz-range-track { background: rgba(230, 230, 220, 0.3); }
 input[type="range"]:focus-visible { outline: 1px dashed rgba(230, 230, 220, 0.35); outline-offset: 2px; }
 
-/* ---------- Phones ---------- */
-@media (max-width: 600px) {
-    .ui-overlay { padding: 1rem; }
-    :root { --sidebar-width: calc(100vw - 2rem); }
-    header h1 { font-size: 2rem; }
-    /* Bottom sheet: 358px wide, at most 55% of the screen tall, so the artwork stays visible above it. */
-    .sidebar { flex: 0 1 auto; margin-top: auto; max-height: 55dvh; padding: 16px; }
-    #sidebar-toggle { top: 1rem; left: auto; right: 1rem; }
-    body.sidebar-collapsed #sidebar-toggle { left: auto; }
-}
 
 /* Sections keep their natural height; the sidebar scrolls instead of squashing them. */
 .sidebar > * { flex-shrink: 0; }
@@ -521,3 +511,288 @@ input[type="range"]:focus-visible { outline: 1px dashed rgba(230, 230, 220, 0.35
    spans y 11.5–12.5, so the rail passes through the true centre. */
 input[type="range"]::-webkit-slider-thumb { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg stroke='%23ff3e00' stroke-width='2.2' stroke-linecap='round'%3E%3Cline x1='12' y1='5' x2='12' y2='19'/%3E%3Cline x1='5.938' y1='8.5' x2='18.062' y2='15.5'/%3E%3Cline x1='5.938' y1='15.5' x2='18.062' y2='8.5'/%3E%3C/g%3E%3C/svg%3E"); background-position: center; background-size: 24px 24px; }
 input[type="range"]::-moz-range-thumb { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg stroke='%23ff3e00' stroke-width='2.2' stroke-linecap='round'%3E%3Cline x1='12' y1='5' x2='12' y2='19'/%3E%3Cline x1='5.938' y1='8.5' x2='18.062' y2='15.5'/%3E%3Cline x1='5.938' y1='15.5' x2='18.062' y2='8.5'/%3E%3C/g%3E%3C/svg%3E"); background-position: center; background-size: 24px 24px; }
+
+/* ---------- Floating view buttons ---------- */
+#reset-fab {
+    position: fixed;
+    z-index: 100;
+    top: calc(2.5rem + 48px);
+    left: calc(2.5rem + var(--sidebar-width) + 12px);
+    width: 40px;
+    height: 40px;
+    color: var(--weight-primary);
+    font-size: 1.15rem;
+    cursor: pointer;
+    transition: left 0.5s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s;
+}
+#reset-fab:hover { background: rgba(230, 230, 220, 0.12); }
+#reset-fab:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 2px; }
+body.sidebar-collapsed #reset-fab { left: 2.5rem; }
+.toggle-label { display: none; }
+
+/* ---------- Phones: bottom sheet ---------- */
+@media (max-width: 600px) {
+    :root { --sheet-h: 60dvh; }
+    .ui-overlay { padding: 16px; }
+    header { pointer-events: none; margin: 0; }
+    body.sidebar-collapsed header { opacity: 1; }
+    header h1 { font-size: 1.75rem; }
+    header p { font-size: 0.75rem; }
+
+    .sidebar {
+        position: fixed;
+        left: 0; right: 0; bottom: 0;
+        width: 100%;
+        height: var(--sheet-h);
+        max-height: none;
+        margin: 0;
+        padding: 20px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+        border-radius: 14px 14px 0 0;
+        border-bottom: none;
+        transform: none;
+        transform-origin: bottom;
+    }
+    .sidebar.collapsed { transform: translateY(105%); opacity: 1; }
+
+    /* "Controls" pill: bottom-right when closed, riding just above the sheet when open. */
+    #sidebar-toggle,
+    body.sidebar-collapsed #sidebar-toggle {
+        top: auto;
+        left: auto;
+        right: 16px;
+        bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+        width: auto;
+        height: 44px;
+        padding: 0 16px;
+        gap: 8px;
+        transition: bottom 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    body:not(.sidebar-collapsed) #sidebar-toggle { bottom: calc(var(--sheet-h) + 12px); }
+    #toggle-icon { transform: rotate(-90deg); font-size: 0.9rem; }
+    body.sidebar-collapsed #toggle-icon { transform: rotate(90deg); }
+    .toggle-label { display: inline; font-size: 0.8rem; font-weight: 700; }
+    .toggle-label::after { content: "Close"; }
+    body.sidebar-collapsed .toggle-label::after { content: "Controls"; }
+
+    #reset-fab,
+    body.sidebar-collapsed #reset-fab { top: 16px; left: auto; right: 16px; width: 44px; height: 44px; }
+
+    /* Touch targets: 44px buttons, 36px slider rows with the asterisk still centred (6 + 12 = 18). */
+    .mode-btn { min-height: 44px; }
+    input[type="range"],
+    input[type="range"]::-webkit-slider-runnable-track { height: 36px; }
+    input[type="range"]::-webkit-slider-thumb { margin-top: 6px; }
+}
+
+/* ═════════════════════════════════════════════════════════════
+   LiquidToggle — from Bencho "Liquid toggle" (MIT, bencho.dev/licence).
+   Everything down to the line "end of Bencho's CSS" is the original,
+   comments included. The source pasted in was cut off inside the
+   `.liq-sw` rule; the rules after that line complete it and are ours.
+   ═════════════════════════════════════════════════════════════ */
+
+/* ── the rest of them ────────────────────────────────────────
+   Not every block has a ::before to hang a border on, and
+   giving each one a pseudo-element it does not otherwise need
+   is a lot of stylesheet for a hairline. A 1px spread shadow
+   is the same mark by another means — the create menu has
+   used exactly this since it was written, for exactly this
+   reason — and it composites without touching layout.
+
+   This is what makes Stroke honest on every entry rather than
+   on the dozen that happened to be built on a glass pane. */
+[data-stroke="on"] .bal,
+[data-stroke="on"] .bar-rail,
+[data-stroke="on"] .fan-core,
+[data-stroke="on"] .step-pill,
+[data-stroke="on"] .liq-sw,
+[data-stroke="on"] .deck-card,
+[data-stroke="on"] .tick-row,
+/* NOT the rows. Stroke is a question about the block's own
+   edge, and hanging it on every row inside drew four
+   hairlines in the middle of a panel that still had none
+   round it. `.lab` already carries the ::before this control
+   was built for, and the roster's box is a .lab. */
+
+/* ── a ring on a metaball ────────────────────────────────────
+   The reorder list's rows are blobs on a filtered layer, and a
+   spread shadow drawn there does not survive: the blur smears
+   it and the alpha row then crushes what is left to nothing,
+   so Stroke appeared to do nothing on this block in either
+   theme.
+
+   The ring goes on the UNFILTERED twin instead. Every row is
+   drawn twice — a blob that merges and an ink layer above it
+   that carries the avatar and the name — and the two share
+   their geometry exactly, so an outline on the top one traces
+   the shape of the bottom one for free. */
+/* ── and the node card ─────────────────────────────────────
+   It drew its hairline unconditionally for a revision, which
+   is the one thing a block with a Stroke control must not do:
+   the control then reads as broken in the Off position,
+   because the edge it promises to remove is still there. The
+   ring follows the card's own corner, which is a knob. */
+[data-stroke="on"] .nod-card {
+  box-shadow: 0 0 0 1px var(--pane-edge);
+  border-radius: var(--nod-r, 20px);}
+
+/* ════ liquid ═══════════════════════════════════════════════
+   Three studies in one filter. Prefix liq-.
+
+   Every one of these is two layers in register: opaque shapes
+   on a layer carrying url(#liq-goo), and anything that needs
+   a crisp edge — text, a hit area — riding above on a layer
+   that carries no filter at all. The goo eats translucency
+   and mangles glyphs, so nothing else can share the layer. */
+
+/* ── 1 · liquid toggle ───────────────────────────────────── */
+.liq-well {
+  width: 240px; height: 130px;
+  display: grid; place-items: center;}
+
+/* ── BLACK AND WHITE, AND NO EDGE OF ITS OWN ────────────────
+   The on state was a green wash with a green ring, which made
+   this the only block on the bench asserting a colour nothing
+   else uses — and a switch does not need a hue to say it is
+   on. It inverts instead: a light track with a dark thumb
+   becomes a dark track with a light one, which is the strongest
+   thing two colours can say and the only thing this component
+   has to say.
+
+   `--fill-on` / `--fill-slab` rather than --ink / --board, so
+   the pair follows the Fill control the entry declares instead
+   of naming a colour twice.
+
+   And no inset ring. It carried one unconditionally, which is
+   an edge the Stroke switch cannot take away — the same bug
+   the sleep pill, the command bar and the Notify pill all had.
+   Stroke's own rule is a few hundred lines up. */
+.liq-sw {
+  position: relative;
+  width: 92px; height: 46px;
+  padding: 0; border: 0;
+  /* ── ALWAYS A PILL ────────────────────────────────────────
+     It took a Corner knob for a while and does not any more.
+     A switch is
+     ── end of Bencho's CSS (the pasted source stops here) ── */
+
+  /* ── ours: completing the rule ───────────────────────────
+     23 is half the 46px height, so the track is the pill the
+     component's own notes say it already is. */
+  border-radius: 23px;
+  cursor: pointer;
+  flex-shrink: 0;
+  touch-action: none; /* a drag on the thumb must not scroll the sheet */
+
+  /* ── ours: Bencho's tokens, mapped to this project ───────
+     Defined on the component root so nothing leaks out.
+     --ink / --board are the project's limestone ink and
+     obsidian ground. --card has no opaque equivalent here
+     (--ui-bg is translucent, and these fills must be opaque),
+     so it is a solid step above the ground. The Fill pair
+     follows the same polarity: on = ink, slab = ground.
+     --pane-edge is the project's glass hairline. --nod-r is
+     only read by .nod-card, which this project does not have;
+     its rule carries its own 20px fallback. */
+  --ink: var(--weight-primary);
+  --board: var(--weight-neutral);
+  --card: #1a1c1d;
+  --fill-on: var(--weight-primary);
+  --fill-slab: var(--weight-neutral);
+  --pane-edge: var(--glass-border);
+
+  /* ours: the inversion in this project's polarity. The sidebar
+     is dark, so off is a dark track carrying a light droplet,
+     and on turns the track to ink with a ground-coloured drop. */
+  background: var(--card);
+  transition: background 0.28s ease;
+}
+.liq-sw[data-on="true"] { background: var(--fill-on); }
+.liq-sw:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 3px; }
+
+/* ours: the blob layer. No filter on it — the component's own
+   "NO GOO" note explains why a single circle is crisper without. */
+.liq-sw-blobs { position: absolute; inset: 0; pointer-events: none; }
+.liq-thumb {
+  position: absolute;
+  left: 0;
+  top: calc((46px - var(--liq-thumb)) / 2);
+  width: var(--liq-thumb);
+  height: var(--liq-thumb);
+  border-radius: 50%;
+  background: var(--ink);
+  transition: background 0.28s ease;
+  will-change: transform;
+}
+.liq-sw[data-on="true"] .liq-thumb { background: var(--fill-slab); }
+
+/* ours: in the sidebar the 92×46 switch sits at the end of the row */
+.switch-label .liq-sw { margin-left: 12px; }
+
+/* ---------- Source morph menu ----------
+   Pill → menu on one spring (components/morph-menu.js). The slot reserves the
+   pill's 44px so the menu opens over the sections below instead of pushing them. */
+.morph-slot { position: relative; height: 44px; z-index: 20; }
+.morph {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    overflow: hidden;
+    border-radius: 22px;
+    background: var(--accent-color);
+    color: #000;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    transform-origin: top left;
+}
+.morph[data-morph="menu"] {
+    background: #141617; /* opaque: the menu sits over the controls below */
+    color: var(--weight-primary);
+    box-shadow: inset 0 0 0 1px var(--glass-border), 0 18px 40px rgba(0, 0, 0, 0.55);
+}
+.morph-pill {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    width: 100%; height: 44px;
+    padding: 0 16px 0 14px;
+    border: 0; background: transparent; color: inherit;
+    font: 700 0.85rem 'JetBrains Mono', monospace;
+    cursor: pointer;
+}
+[data-view="menu"] { display: flex; flex-direction: column; gap: 2px; padding: 4px; }
+[data-view="menu"][hidden] { display: none; }
+.morph-item {
+    display: flex; align-items: center; gap: 8px;
+    width: 100%; min-height: 40px;
+    padding: 0 12px 0 10px;
+    border: 0; border-radius: 8px;
+    background: rgba(230, 230, 220, 0.04);
+    color: var(--weight-primary);
+    font: 500 0.8rem 'JetBrains Mono', monospace;
+    text-align: left; white-space: nowrap;
+    cursor: pointer;
+    transition: background 0.15s ease-out, color 0.15s ease-out;
+}
+.morph-item:hover, .morph-item:focus-visible { background: rgba(230, 230, 220, 0.12); outline: none; }
+.morph-item:focus-visible { box-shadow: inset 0 0 0 1px var(--accent-color); }
+.morph-pill:focus-visible { outline: 2px solid var(--weight-primary); outline-offset: -4px; border-radius: 20px; }
+.morph-ico { width: 16px; height: 16px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Incoming view: blur 4px → 0, scaleY 0.98 → 1, fade in; 0.2s after a 0.03s delay. */
+.morph-enter { animation: morph-in 0.2s ease-out 0.03s both; transform-origin: top; }
+@keyframes morph-in {
+    from { opacity: 0; filter: blur(4px); transform: scaleY(0.98); }
+    to   { opacity: 1; filter: blur(0); transform: scaleY(1); }
+}
+@media (prefers-reduced-motion: reduce) { .morph-enter { animation: none; } }
+
+/* ---------- Loader: thinking orb ----------
+   Centred over the scene, never blocking it; the label names the orb's state. */
+.loader {
+    position: fixed; inset: 0; z-index: 5;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+    pointer-events: none;
+}
+.loader[hidden] { display: none; }
+.loader-label {
+    font: 500 0.75rem 'JetBrains Mono', monospace;
+    letter-spacing: 0.08em;
+    color: rgba(230, 230, 220, 0.6);
+}

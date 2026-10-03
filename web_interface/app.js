@@ -69,11 +69,28 @@
         particles.setAtlas(atlas);
     }
 
+    // ---------- loader ----------
+    // The orb engine is an ES module from a CDN, so it may arrive after the first
+    // load starts; until then the label alone says "Loading…".
+    const loaderEl = document.getElementById('loader');
+    const loaderLabel = document.getElementById('loader-label');
+    let orb = null;
+    function startOrb() {
+        if (orb || loaderEl.hidden || !window.ThinkingOrb) return;
+        const state = window.ThinkingOrb.randomState();
+        orb = window.ThinkingOrb.mount(document.getElementById('loader-orb'), { state, size: 64, dark: true });
+        loaderLabel.textContent = `${state[0].toUpperCase()}${state.slice(1)}…`;
+    }
+    window.addEventListener('thinking-orb-ready', startOrb);
+    function showLoader() { loaderEl.hidden = false; loaderLabel.textContent = 'Loading…'; startOrb(); }
+    function hideLoader() { loaderEl.hidden = true; if (orb) { orb.stop(); orb = null; } }
+
     // ---------- source loading ----------
     async function load(url, isModel) {
         source = { url, isModel };
         const t0 = performance.now();
-        setStatus('Loading…');
+        setStatus('');
+        showLoader();
         try {
             const side = ParticleSystem.sideFor(config.count * 1000);
             const count = side * side;
@@ -81,6 +98,7 @@
             if (sourceObject) sourceScene.remove(sourceObject);
             sourceObject = result.object;
             sourceScene.add(sourceObject);
+            limitOrbit(result.kind === 'image');
             const p = result.particles;
             if (particlesOK) {
                 try { particles.setData(p.positions, p.colors, p.luma); }
@@ -88,9 +106,11 @@
             }
             statsEl.textContent = `${particlesOK ? (p.luma.length / 1000).toFixed(0) + 'k pts · ' : ''}${(performance.now() - t0).toFixed(0)} ms · ${tier.name} quality`;
             setStatus('');
+            hideLoader();
             startFpsGuard();
         } catch (e) {
             console.error(e);
+            hideLoader();
             setStatus(`${e.message} Try another file.`);
         }
     }
@@ -205,16 +225,37 @@
         el.addEventListener('change', () => { config[id] = el.checked; applyConfig(); });
     });
 
-    document.getElementById('reset-view').addEventListener('click', () => controls.reset());
+    // A flat image only reads from the front, so its orbit is kept within ±65° of head-on.
+    // Models can be orbited all the way round.
+    function limitOrbit(flat) {
+        const range = flat ? THREE.MathUtils.degToRad(65) : Infinity;
+        controls.minAzimuthAngle = -range;
+        controls.maxAzimuthAngle = range;
+        controls.minPolarAngle = flat ? Math.PI / 2 - THREE.MathUtils.degToRad(65) : 0;
+        controls.maxPolarAngle = flat ? Math.PI / 2 + THREE.MathUtils.degToRad(65) : Math.PI;
+    }
+
+    // Reset is always reachable: the floating button, the sidebar button,
+    // double-click / double-tap on the scene, and the R key.
+    const resetView = () => controls.reset();
+    document.getElementById('reset-view').addEventListener('click', resetView);
+    document.getElementById('reset-fab').addEventListener('click', resetView);
+    renderer.domElement.addEventListener('dblclick', resetView);
+    window.addEventListener('keydown', (e) => {
+        if ((e.key === 'r' || e.key === 'R') && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) resetView();
+    });
     const sidebar = document.getElementById('sidebar');
     const toggleBtn = document.getElementById('sidebar-toggle');
     toggleBtn.setAttribute('aria-expanded', 'true');
-    toggleBtn.addEventListener('click', () => {
-        const collapsed = sidebar.classList.toggle('collapsed');
+    function setCollapsed(collapsed) {
+        sidebar.classList.toggle('collapsed', collapsed);
         // The button comes before the sidebar in the DOM, so CSS can't see the state; mark the body.
         document.body.classList.toggle('sidebar-collapsed', collapsed);
         toggleBtn.setAttribute('aria-expanded', String(!collapsed));
-    });
+    }
+    toggleBtn.addEventListener('click', () => setCollapsed(!sidebar.classList.contains('collapsed')));
+    // Phones open on the artwork; the controls are one tap away.
+    if (matchMedia('(max-width: 600px)').matches) setCollapsed(true);
 
     // ---------- cursor ----------
     const pointer = new THREE.Vector2();
@@ -296,6 +337,13 @@
 
     if (!particlesOK) disableParticles();
     console.info(`PointGen: ${tier.name} quality`, device.reasons.length ? `(${device.reasons.join(', ')})` : '');
+    new MorphMenu(document.getElementById('source-menu'));
+    // The upload row is a <label for>; give it the keyboard activation a button would have.
+    document.querySelector('label.morph-item[for="file-input"]').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); document.getElementById('file-input').click(); }
+    });
+    // Sidebar switches use the Liquid toggle; the checkboxes stay as the source of truth.
+    ['edges', 'invert', 'trails', 'orbit'].forEach((id) => LiquidToggle.enhance(document.getElementById(id)));
     rebuildAtlas();
     syncInputs();
     applyConfig();

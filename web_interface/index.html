@@ -7,7 +7,7 @@
     <link rel="icon" href="data:;base64,iVBORw0KGgo=">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap">
-    <link rel="stylesheet" href="style.css?v=5.2">
+    <link rel="stylesheet" href="style.css?v=5.6">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
@@ -17,9 +17,29 @@
 <body>
     <div id="canvas-holder"></div>
 
+    <!-- Loading: a thinking orb in a random state each time (components/thinking-orb.js). -->
+    <div id="loader" class="loader" hidden>
+        <canvas id="loader-orb" width="64" height="64"></canvas>
+        <p id="loader-label" class="loader-label">Loading…</p>
+    </div>
+
+    <!-- #liq-goo: the SVG filter Bencho's liquid components expect, mounted once.
+         The toggle itself no longer uses it (see its "NO GOO" note); it is here
+         for the list and menu studies if they are added later. No images needed. -->
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true" focusable="false">
+        <defs>
+            <filter id="liq-goo" x="-50%" y="-50%" width="200%" height="200%" color-interpolation-filters="sRGB">
+                <feGaussianBlur in="SourceGraphic" stdDeviation="7" result="smear" />
+                <feColorMatrix in="smear" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 20 -10" />
+            </filter>
+        </defs>
+    </svg>
+
     <button id="sidebar-toggle" class="glass" aria-label="Toggle controls">
         <span id="toggle-icon">❮</span>
+        <span class="toggle-label" aria-hidden="true"></span>
     </button>
+    <button id="reset-fab" class="glass" aria-label="Reset view" title="Reset view (R or double-click)">⟲</button>
 
     <div class="ui-overlay">
         <header>
@@ -35,14 +55,32 @@
         <div class="sidebar glass" id="sidebar">
             <div class="section">
                 <h3>Source</h3>
-                <div class="upload-btn-wrapper">
-                    <button class="btn btn-primary">Load image or GLB</button>
-                    <input type="file" id="file-input" accept="image/*,.glb,.gltf" />
+                <!-- Pill that springs open into the source menu (components/morph-menu.js). -->
+                <div class="morph-slot">
+                    <div class="morph" id="source-menu" data-morph="button">
+                        <div data-view="button">
+                            <button type="button" class="morph-pill" aria-haspopup="menu">
+                                <svg class="morph-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>
+                                Load source
+                            </button>
+                        </div>
+                        <div data-view="menu" role="menu" aria-label="Load source">
+                            <label class="morph-item" for="file-input" role="menuitem" tabindex="0" data-close>
+                                <svg class="morph-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M5 15v4h14v-4"/></svg>
+                                <span>Upload image or GLB</span>
+                            </label>
+                            <button type="button" class="morph-item" role="menuitem" data-sample="images/3d_outline.glb" data-close>
+                                <svg class="morph-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9z"/><path d="M4 7.5 12 12l8-4.5M12 12v9"/></svg>
+                                <span>Sample GLB · bust</span>
+                            </button>
+                            <button type="button" class="morph-item" role="menuitem" data-sample="images/roman_bust.png" data-close>
+                                <svg class="morph-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m20.5 16-5-5-8 8.5"/></svg>
+                                <span>Sample image · bust</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
-                <div class="mode-selector" id="samples">
-                    <button class="mode-btn" data-sample="images/3d_outline.glb">Sample GLB</button>
-                    <button class="mode-btn" data-sample="images/roman_bust.png">Sample image</button>
-                </div>
+                <input type="file" id="file-input" accept="image/*,.glb,.gltf" hidden />
             </div>
 
             <div class="section">
@@ -138,12 +176,15 @@
         </div>
     </div>
 
-    <script src="engine/device.js?v=5.2"></script>
-    <script src="engine/glyphs.js?v=5.2"></script>
-    <script src="engine/sampler.js?v=5.2"></script>
-    <script src="engine/ascii-pass.js?v=5.2"></script>
-    <script src="engine/particles.js?v=5.2"></script>
-    <script src="engine/sources.js?v=5.2"></script>
-    <script src="app.js?v=5.2"></script>
+    <script src="engine/device.js?v=5.6"></script>
+    <script src="engine/glyphs.js?v=5.6"></script>
+    <script src="engine/sampler.js?v=5.6"></script>
+    <script src="engine/ascii-pass.js?v=5.6"></script>
+    <script src="engine/particles.js?v=5.6"></script>
+    <script src="engine/sources.js?v=5.6"></script>
+    <script src="components/liquid-toggle.js?v=5.6"></script>
+    <script src="components/morph-menu.js?v=5.6"></script>
+    <script src="app.js?v=5.6"></script>
+    <script type="module" src="components/thinking-orb.js?v=5.6"></script>
 </body>
 </html>

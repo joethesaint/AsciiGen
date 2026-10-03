@@ -42,7 +42,8 @@
         texture.needsUpdate = true;
         const object = new THREE.Mesh(
             new THREE.PlaneGeometry(w, h),
-            new THREE.MeshBasicMaterial({ map: texture, transparent: true })
+            // Double-sided: orbiting past the edge shows the image mirrored instead of a black void.
+            new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.DoubleSide })
         );
 
         const px = pixelsOf(img, 512);
