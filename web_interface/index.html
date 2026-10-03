@@ -3,18 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AsciiGen - Pure Cinematic Engine</title>
+    <title>PointGen</title>
     <link rel="icon" href="data:;base64,iVBORw0KGgo=">
-    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap">
+    <link rel="stylesheet" href="style.css?v=5.2">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-    <script type="module" src="https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/environments/RoomEnvironment.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/misc/GPUComputationRenderer.js"></script>
 </head>
 <body>
     <div id="canvas-holder"></div>
 
-    <button id="sidebar-toggle" class="glass">
+    <button id="sidebar-toggle" class="glass" aria-label="Toggle controls">
         <span id="toggle-icon">❮</span>
     </button>
 
@@ -22,147 +25,125 @@
         <header>
             <h1>Point<span>Gen</span></h1>
             <div class="subtitle-container">
-                <p>Kinetic Pointillism v4.0</p>
-                <div id="backend-status-container">
-                    <span id="glb-indicator" style="display:none; background: var(--accent-color); color: #000; padding: 2px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: 800; letter-spacing: 1px;">TRUE 3D</span>
-                    <span id="backend-status"></span>
-                    <span id="fps-counter">60 FPS</span>
-                    <span id="load-time" style="font-family: monospace; font-size: 0.7rem; color: var(--weight-secondary); margin-left: 8px;"></span>
-                </div>
+                <p>ASCII &amp; particle engine v5.0</p>
+
+                <p class="stat-row"><span id="fps-counter">-- FPS</span> · <span id="stats"></span></p>
+                <p id="status-msg" class="status-msg" role="status" aria-live="polite"></p>
             </div>
         </header>
 
         <div class="sidebar glass" id="sidebar">
             <div class="section">
-                <h3>System Controls</h3>
+                <h3>Source</h3>
                 <div class="upload-btn-wrapper">
-                    <button class="btn btn-primary">Load Source</button>
-                    <input type="file" id="file-input" accept="image/*" />
+                    <button class="btn btn-primary">Load image or GLB</button>
+                    <input type="file" id="file-input" accept="image/*,.glb,.gltf" />
+                </div>
+                <div class="mode-selector" id="samples">
+                    <button class="mode-btn" data-sample="images/3d_outline.glb">Sample GLB</button>
+                    <button class="mode-btn" data-sample="images/roman_bust.png">Sample image</button>
                 </div>
             </div>
 
             <div class="section">
-                <h3>View Controls</h3>
-                <button id="reset-view" class="btn glass" style="width: 100%; margin-bottom: 0.5rem; border: 1px solid var(--glass-border); background:rgba(255,255,255,0.02); color: var(--weight-primary);">Reset Perspective</button>
-            </div>
-
-            <div class="section">
-                <h3>Visual Mode</h3>
-                <div class="mode-selector" id="render-modes">
-                    <button class="mode-btn active" data-render="points">Points</button>
-                    <button class="mode-btn" data-render="ascii">ASCII</button>
-                    <button class="mode-btn" data-render="hybrid">Hybrid</button>
+                <h3>Render</h3>
+                <div class="mode-selector" data-group="render">
+                    <button class="mode-btn active" data-value="ascii">ASCII</button>
+                    <button class="mode-btn" data-value="particles">Particles</button>
                 </div>
             </div>
 
-            <div class="section">
-                <h3>Character Signature</h3>
-                <div class="mode-selector" id="char-sets">
-                    <button class="mode-btn active" data-set="default">Default</button>
-                    <button class="mode-btn" data-set="reverse">Reverse</button>
-                    <button class="mode-btn" data-set="pointism">Pointillistic</button>
-                    <button class="mode-btn" data-set="detailed">Detailed (70ch)</button>
-                </div>
-            </div>
-
-            <div class="section">
-                <h3>Preprocessing Filter</h3>
-                <div class="mode-selector" id="kernel-filters">
-                    <button class="mode-btn active" data-kernel="edges">Standard Edges</button>
-                    <button class="mode-btn" data-kernel="sharpen">Fine Sharpen</button>
-                    <button class="mode-btn" data-kernel="emboss">3D Relief</button>
-                    <button class="mode-btn" data-kernel="gaussian">Gaussian Soften</button>
-                </div>
-            </div>
-
-            <div class="section">
-                <h3>Motion Dynamics</h3>
-                <div class="mode-selector" id="physics-modes">
-                    <button class="mode-btn active" data-mode="grid">Static</button>
-                    <button class="mode-btn" data-mode="drift">Drift</button>
-                    <button class="mode-btn" data-mode="vortex">Vortex</button>
-                </div>
-            </div>
-
-            <div class="section">
-                <h3>Simulation Params</h3>
+            <div class="section" data-for="ascii">
+                <h3>ASCII</h3>
                 <div class="control-item">
-                    <div class="label-row">
-                        <label>Interaction Range</label>
-                        <span class="val-display" id="flee-val">150</span>
-                    </div>
-                    <input type="range" id="flee-slider" min="20" max="600" value="150" class="asterisk-slider">
+                    <div class="label-row"><label for="cell">Cell size</label><span class="val-display" data-out="cell"></span></div>
+                    <input type="range" id="cell" min="4" max="28" value="8" class="asterisk-slider">
                 </div>
                 <div class="control-item">
-                    <div class="label-row">
-                        <label>Particle Density</label>
-                        <span class="val-display" id="res-val">28</span>
-                    </div>
-                    <input type="range" id="res-slider" min="1" max="29" value="28" class="asterisk-slider">
+                    <div class="label-row"><label for="contrast">Contrast</label><span class="val-display" data-out="contrast"></span></div>
+                    <input type="range" id="contrast" min="50" max="250" value="130" class="asterisk-slider">
                 </div>
-                <div class="control-item">
-                    <div class="label-row">
-                        <label>View Depth (Zoom)</label>
-                        <span class="val-display" id="zoom-val">1200</span>
-                    </div>
-                    <input type="range" id="zoom-slider" min="400" max="3000" value="1200" class="asterisk-slider">
+                <div class="mode-selector" data-group="color">
+                    <button class="mode-btn active" data-value="mono">Mono</button>
+                    <button class="mode-btn" data-value="source">Source colour</button>
                 </div>
-
-            </div>
-
-            <div id="3d-controls" style="display:none;">
-                <div class="section toggle-section" style="border-top: 1px solid var(--glass-border); padding-top: 1.5rem; margin-top: 1.5rem;">
-                    <label class="switch-label">
-                        <span>Auto-Orbit</span>
-                        <div class="switch">
-                            <input type="checkbox" id="auto-rotate-toggle">
-                            <span class="slider round"></span>
-                        </div>
+                <div class="toggle-section">
+                    <label class="switch-label"><span>Edge lines  / | \ -</span>
+                        <div class="switch"><input type="checkbox" id="edges"><span class="slider round"></span></div>
                     </label>
                 </div>
-                <div class="section toggle-section" style="margin-top: 1rem;">
-                    <label class="switch-label">
-                        <span>Drag Interactivity</span>
-                        <div class="switch">
-                            <input type="checkbox" id="drag-toggle" checked>
-                            <span class="slider round"></span>
-                        </div>
+                <div class="toggle-section">
+                    <label class="switch-label"><span>Invert</span>
+                        <div class="switch"><input type="checkbox" id="invert"><span class="slider round"></span></div>
                     </label>
                 </div>
             </div>
 
-            <div class="section toggle-section">
-                <label class="switch-label">
-                    <span>Flow Reaction</span>
-                    <div class="switch">
-                        <input type="checkbox" id="flow-toggle">
-                        <span class="slider round"></span>
-                    </div>
-                </label>
+            <div class="section" data-for="particles" hidden>
+                <h3>Particles</h3>
+                <div class="mode-selector" data-group="sprite">
+                    <button class="mode-btn active" data-value="dots">Dots</button>
+                    <button class="mode-btn" data-value="glyphs">Characters</button>
+                </div>
+                <div class="control-item">
+                    <div class="label-row"><label for="count">Count (thousands)</label><span class="val-display" data-out="count"></span></div>
+                    <input type="range" id="count" min="10" max="400" step="10" value="150" class="asterisk-slider">
+                </div>
+                <div class="control-item">
+                    <div class="label-row"><label for="size">Size</label><span class="val-display" data-out="size"></span></div>
+                    <input type="range" id="size" min="3" max="40" value="10" class="asterisk-slider">
+                </div>
+                <div class="control-item">
+                    <div class="label-row"><label for="force">Cursor force</label><span class="val-display" data-out="force"></span></div>
+                    <input type="range" id="force" min="0" max="100" value="35" class="asterisk-slider">
+                </div>
+                <div class="control-item">
+                    <div class="label-row"><label for="radius">Cursor radius</label><span class="val-display" data-out="radius"></span></div>
+                    <input type="range" id="radius" min="5" max="100" value="35" class="asterisk-slider">
+                </div>
+                <div class="control-item">
+                    <div class="label-row"><label for="spring">Snap-back strength</label><span class="val-display" data-out="spring"></span></div>
+                    <input type="range" id="spring" min="2" max="40" value="14" class="asterisk-slider">
+                </div>
+                <div class="mode-selector" data-group="motion">
+                    <button class="mode-btn active" data-value="still">Still</button>
+                    <button class="mode-btn" data-value="drift">Drift</button>
+                    <button class="mode-btn" data-value="vortex">Vortex</button>
+                </div>
+                <div class="toggle-section">
+                    <label class="switch-label"><span>Trails</span>
+                        <div class="switch"><input type="checkbox" id="trails"><span class="slider round"></span></div>
+                    </label>
+                </div>
             </div>
-            <div class="section toggle-section" style="margin-top: 1rem;">
-                <label class="switch-label">
-                    <span>Character Inversion</span>
-                    <div class="switch">
-                        <input type="checkbox" id="invert-toggle">
-                        <span class="slider round"></span>
-                    </div>
-                </label>
+
+            <div class="section" id="charset-section">
+                <h3>Character set</h3>
+                <div class="mode-selector" data-group="glyphs">
+                    <button class="mode-btn active" data-value="classic">Classic</button>
+                    <button class="mode-btn" data-value="detailed">Detailed</button>
+                    <button class="mode-btn" data-value="blocks">Blocks</button>
+                </div>
             </div>
-            <div class="section toggle-section" style="margin-top: 1rem;">
-                <label class="switch-label">
-                    <span>3D Perspective</span>
-                    <div class="switch">
-                        <input type="checkbox" id="dim-toggle" checked>
-                        <span class="slider round"></span>
-                    </div>
-                </label>
+
+            <div class="section">
+                <h3>View</h3>
+                <button id="reset-view" class="btn glass">Reset view</button>
+                <div class="toggle-section">
+                    <label class="switch-label"><span>Auto-orbit</span>
+                        <div class="switch"><input type="checkbox" id="orbit"><span class="slider round"></span></div>
+                    </label>
+                </div>
             </div>
         </div>
     </div>
 
-    <script src="tests.js?v=2"></script>
-    <script src="UIController.js?v=2"></script>
-    <script src="sketch.js?v=2"></script>
+    <script src="engine/device.js?v=5.2"></script>
+    <script src="engine/glyphs.js?v=5.2"></script>
+    <script src="engine/sampler.js?v=5.2"></script>
+    <script src="engine/ascii-pass.js?v=5.2"></script>
+    <script src="engine/particles.js?v=5.2"></script>
+    <script src="engine/sources.js?v=5.2"></script>
+    <script src="app.js?v=5.2"></script>
 </body>
 </html>

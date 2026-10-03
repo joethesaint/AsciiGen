@@ -396,3 +396,128 @@ input:checked + .slider:before {
     opacity: 0;
     cursor: pointer;
 }
+
+/* v5 additions */
+[hidden] { display: none !important; }
+#reset-view { width: 100%; margin-bottom: 0.5rem; }
+#samples { margin-top: 0.75rem; }
+.stat-row { font-family: "JetBrains Mono", monospace; font-size: 0.7rem; color: var(--weight-secondary); margin: 6px 0 0; }
+#fps-counter { color: inherit; }
+.stat-line { font-family: "JetBrains Mono", monospace; font-size: 0.7rem; color: var(--weight-secondary); margin-left: 8px; }
+.status-msg { font-family: "JetBrains Mono", monospace; font-size: 0.75rem; color: var(--accent-color); min-height: 1em; margin: 4px 0 0; }
+
+/* Hierarchy pass: vermilion fill is reserved for the one primary action.
+   Option groups become compact segmented rows; the selected option is marked
+   by a light fill + limestone text and a thin accent underline. */
+.mode-selector {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    gap: 4px;
+    margin-bottom: 1rem;
+}
+.mode-btn {
+    padding: 0.55rem 0.5rem;
+    font-size: 0.75rem;
+    text-align: center;
+    color: rgba(230, 230, 220, 0.55);
+}
+.mode-btn.active {
+    background: rgba(230, 230, 220, 0.12);
+    color: var(--weight-primary);
+    border-color: rgba(230, 230, 220, 0.45);
+    box-shadow: inset 0 -2px 0 var(--accent-color);
+}
+.mode-btn:focus-visible, .btn:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 2px; }
+#samples .mode-btn { font-weight: 500; }
+
+.mode-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* ---------- Layout fixes (v5.1) ---------- */
+body { height: 100%; height: 100dvh; }
+
+/* The sidebar fills whatever height the header leaves, and scrolls inside it. */
+.sidebar {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    gap: 0;
+}
+.sidebar > .section { padding-block: 1.1rem; }
+.sidebar > .section:first-child { padding-top: 0; }
+.sidebar > .section + .section { border-top: 1px solid rgba(230, 230, 220, 0.08); }
+.section h3 { margin-bottom: 0.8rem; }
+
+/* Header: title, subtitle, stats and status stack instead of squeezing into one row. */
+.subtitle-container { flex-direction: column; align-items: flex-start; gap: 2px; }
+header { margin-bottom: 1.25rem; }
+
+/* Switches line up with the slider labels. */
+.toggle-section { margin-top: 0.75rem; }
+.switch-label span { font-size: 0.85rem; font-weight: 500; color: rgba(255, 255, 255, 0.8); }
+.control-item { margin-bottom: 1rem; }
+.label-row { margin-bottom: 0.25rem; }
+
+/* Collapse button sits on the sidebar's edge and follows it. */
+#sidebar-toggle {
+    top: 2.5rem;
+    right: auto;
+    left: calc(2.5rem + var(--sidebar-width) + 12px);
+    width: 40px;
+    height: 40px;
+    color: var(--weight-primary);
+    transition: left 0.5s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s;
+}
+body.sidebar-collapsed #sidebar-toggle { left: 2.5rem; }
+body.sidebar-collapsed #toggle-icon { transform: rotate(180deg); }
+body.sidebar-collapsed header { opacity: 0.3; }
+#sidebar-toggle:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 2px; }
+
+/* ---------- Asterisk sliders: a faint rail shows where to grab ---------- */
+input[type="range"] {
+    --fill: 50%;
+    height: 24px;
+    background: transparent;
+    cursor: pointer;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+    height: 24px;
+    background:
+        linear-gradient(rgba(255, 62, 0, 0.45), rgba(255, 62, 0, 0.45)) left center / var(--fill) 1px no-repeat,
+        linear-gradient(rgba(230, 230, 220, 0.14), rgba(230, 230, 220, 0.14)) center / 100% 1px no-repeat;
+}
+input[type="range"]:hover::-webkit-slider-runnable-track,
+input[type="range"]:focus-visible::-webkit-slider-runnable-track {
+    background:
+        linear-gradient(rgba(255, 62, 0, 0.7), rgba(255, 62, 0, 0.7)) left center / var(--fill) 1px no-repeat,
+        linear-gradient(rgba(230, 230, 220, 0.3), rgba(230, 230, 220, 0.3)) center / 100% 1px no-repeat;
+}
+input[type="range"]::-webkit-slider-thumb { margin-top: 0; }
+input[type="range"]::-moz-range-track { height: 1px; background: rgba(230, 230, 220, 0.14); }
+input[type="range"]::-moz-range-progress { height: 1px; background: rgba(255, 62, 0, 0.45); }
+input[type="range"]:hover::-moz-range-track { background: rgba(230, 230, 220, 0.3); }
+input[type="range"]:focus-visible { outline: 1px dashed rgba(230, 230, 220, 0.35); outline-offset: 2px; }
+
+/* ---------- Phones ---------- */
+@media (max-width: 600px) {
+    .ui-overlay { padding: 1rem; }
+    :root { --sidebar-width: calc(100vw - 2rem); }
+    header h1 { font-size: 2rem; }
+    /* Bottom sheet: 358px wide, at most 55% of the screen tall, so the artwork stays visible above it. */
+    .sidebar { flex: 0 1 auto; margin-top: auto; max-height: 55dvh; padding: 16px; }
+    #sidebar-toggle { top: 1rem; left: auto; right: 1rem; }
+    body.sidebar-collapsed #sidebar-toggle { left: auto; }
+}
+
+/* Sections keep their natural height; the sidebar scrolls instead of squashing them. */
+.sidebar > * { flex-shrink: 0; }
+/* Segmented rows share the width evenly and never push past the sidebar edge. */
+.mode-selector { grid-auto-columns: minmax(0, 1fr); }
+.mode-btn { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.switch { flex-shrink: 0; }
+
+/* Geometric asterisk: the font glyph sits high in its line box, so the rail missed its centre.
+   Three strokes cross at exactly (12,12) of a 24px thumb on a 24px track, and the 1px rail
+   spans y 11.5–12.5, so the rail passes through the true centre. */
+input[type="range"]::-webkit-slider-thumb { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg stroke='%23ff3e00' stroke-width='2.2' stroke-linecap='round'%3E%3Cline x1='12' y1='5' x2='12' y2='19'/%3E%3Cline x1='5.938' y1='8.5' x2='18.062' y2='15.5'/%3E%3Cline x1='5.938' y1='15.5' x2='18.062' y2='8.5'/%3E%3C/g%3E%3C/svg%3E"); background-position: center; background-size: 24px 24px; }
+input[type="range"]::-moz-range-thumb { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg stroke='%23ff3e00' stroke-width='2.2' stroke-linecap='round'%3E%3Cline x1='12' y1='5' x2='12' y2='19'/%3E%3Cline x1='5.938' y1='8.5' x2='18.062' y2='15.5'/%3E%3Cline x1='5.938' y1='15.5' x2='18.062' y2='8.5'/%3E%3C/g%3E%3C/svg%3E"); background-position: center; background-size: 24px 24px; }

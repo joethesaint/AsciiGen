@@ -8,14 +8,13 @@ let mode = 'grid';
 window.isFlowEnabled = false;
 window.isInverted = false;
 window.is3D = true;
-window.renderMode = 'points';
 const CHAR_SETS = {
     'default': " .:-=+*#%@",
     'reverse': "@%#*+=-:. ",
     'pointism': "  .·:∵∴∷•",
     'detailed': " .'`^\\\",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$"
 };
-let currentChars = CHAR_SETS['default'];
+let currentChars = CHAR_SETS['detailed'];
 let activeKernel = 'edges';
 let smartWeightMap = null;
 let samplingWorker = new Worker('worker.js');
@@ -30,9 +29,9 @@ let isMouseDown = false;
 let lastMousePos = { x: 0, y: 0 };
 let dragRotation = { x: 0, y: 0 };
 
-const ATLAS_SIZE = 512;
+const ATLAS_SIZE = 1024;
 const CHAR_SIZE = 64;
-const COLS = 8;
+const COLS = 16;
 
 function init() {
     try {
@@ -140,60 +139,40 @@ const pointFragmentShader = `
     uniform float atlasCols;
     uniform float inverted;
     uniform float numChars;
-    uniform float renderMode; // 0=points(dots), 1=ascii, 2=hybrid
     uniform float time;
 
     void main() {
         float size = 1.0 / atlasCols;
-        
+
         float actualIdx = vCharIndex;
-        
-        // Mode Redirection
-        if (renderMode < 0.5 || (renderMode > 1.5 && vEdgeWeight <= 0.5)) { 
-             actualIdx = min(vCharIndex, 3.0); 
-        }
-        
-        // Real Character Inversion: Dark <-> Light
         if (inverted > 0.5) {
             actualIdx = (numChars - 1.0) - actualIdx;
         }
-        
-        // Depth-of-Field (DOF): Pseudo-blur based on Z-distance
+
+        // Depth-of-Field: pseudo-blur on Z-distance
         float focus = 1200.0;
         float d = abs(vDepth - focus) * 0.002;
         float blur = clamp(d, 0.0, 0.8);
-        
+
+        // Sample the character from the atlas
         vec2 charUv = vec2(gl_PointCoord.x, 1.0 - gl_PointCoord.y);
-        
-        // Map to Atlas properly for the single current set
-        float x = mod(actualIdx, atlasCols) * size;
-        float y = floor(actualIdx / atlasCols) * size;
-        vec2 uv = vec2(x, 1.0 - y - size) + charUv * size;
-        
+        float ax = mod(actualIdx, atlasCols) * size;
+        float ay = floor(actualIdx / atlasCols) * size;
+        vec2 uv = vec2(ax, 1.0 - ay - size) + charUv * size;
         vec4 texColor = texture2D(atlas, uv);
-        
-        if (renderMode < 0.5) {
-             if (length(gl_PointCoord - 0.5) > 0.45) discard;
-        } else if (renderMode < 1.5) {
-             if (texColor.r < 0.1) discard; 
-        } else {
-             if (vEdgeWeight > 0.5) {
-                 if (texColor.r < 0.1) discard;
-             } else {
-                 if (length(gl_PointCoord - 0.5) > 0.45) discard;
-             }
-        }
-        
-        vec3 color = vColor * 2.5; 
-        
+        if (texColor.r < 0.1) discard;
+
+        // Contrast-aware colour: edges pop, flats stay restrained
+        vec3 color = vColor * (1.5 + vEdgeWeight * 1.2);
         if (vEdgeWeight > 0.6) {
-            color *= (1.2 + 0.3 * sin(time * 3.0)); 
+            color *= (1.1 + 0.2 * sin(time * 3.0));
         }
-        
+
         float alpha = 1.0 - blur;
         gl_FragColor = vec4(color, alpha);
     }
 `;
+
 
 /** 
  * Smart Adaptive Sampling: Higher density on edges, governed by UI slider
@@ -230,8 +209,8 @@ function processImageToPointCloud(img, depthData) {
     for (let i = 0; i < sampleWidth * sampleHeight; i++) {
         const bri = (data[i*4]*0.3 + data[i*4+1]*0.59 + data[i*4+2]*0.11);
         const edge = edges[i] / 255;
-        // Volumetric Formula: Z = Base depth + Edge relief focus
-        depthMap[i] = bri * 1.5 + edge * 80.0;
+        // Volumetric Formula: Z = Base depth + Edge relief — higher edge weight = more pop
+        depthMap[i] = bri * 1.5 + edge * 150.0;
     }
 
     samplingWorker.onmessage = function(e) {
@@ -345,11 +324,10 @@ function finalizePointCloud(positions, colors, charIndices, edgeWeights) {
     geo.setAttribute('charIndex', new THREE.Float32BufferAttribute(charIndices, 1));
     geo.setAttribute('edgeWeight', new THREE.Float32BufferAttribute(edgeWeights, 1));
 
-    const spacing = 10;
     const mat = new THREE.ShaderMaterial({
         uniforms: {
             numChars: { value: currentChars.length },
-            pointSize: { value: (window.uiController ? window.uiController.config.density : 28) * 0.8 },
+            pointSize: { value: (window.uiController ? window.uiController.config.density : 28) * 2.5 },
             atlas: { value: textureAtlas },
             atlasCols: { value: COLS },
             time: { value: 0 },
@@ -359,15 +337,13 @@ function finalizePointCloud(positions, colors, charIndices, edgeWeights) {
             flowEnabled: { value: window.isFlowEnabled ? 1.0 : 0.0 },
             inverted: { value: window.isInverted ? 1.0 : 0.0 },
             is3D: { value: window.is3D ? 1.0 : 0.0 },
-            renderMode: { value: (window.renderMode === 'ascii' ? 1.0 : (window.renderMode === 'hybrid' ? 2.0 : 0.0)) },
-            numChars: { value: currentChars.length }
         },
         vertexShader: pointVertexShader,
         fragmentShader: pointFragmentShader,
         transparent: true,
-        depthTest: true,
-        depthWrite: true,
-        blending: THREE.NormalBlending
+        depthTest: false,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending
     });
     
     pointsObject = new THREE.Points(geo, mat);
@@ -407,11 +383,11 @@ async function fetchSmartMetadata(fileObject) {
         });
         const data = await response.json();
         smartWeightMap = {
-            data: data.weight_map,
+            b64: data.weight_map_b64,
             width: data.width,
             height: data.height
         };
-        console.log(`Smart Metadata Active: Kernel=${activeKernel}`);
+        console.log(`Smart Metadata Active: Kernel=${activeKernel} (b64 optimized)`);
     } catch (e) {
         console.warn("Backend Analyze Failed: Falling back to local edge detection.");
         smartWeightMap = null;
@@ -541,12 +517,6 @@ function animate() {
         pointsObject.material.uniforms.flowEnabled.value = window.isFlowEnabled ? 1.0 : 0.0;
         pointsObject.material.uniforms.inverted.value = window.isInverted ? 1.0 : 0.0;
         pointsObject.material.uniforms.is3D.value = window.is3D ? 1.0 : 0.0;
-        
-        let rMode = 0.0;
-        if (window.renderMode === 'ascii') rMode = 1.0;
-        if (window.renderMode === 'hybrid') rMode = 2.0;
-        pointsObject.material.uniforms.renderMode.value = rMode;
-        
         pointsObject.material.uniforms.numChars.value = currentChars.length;
         
         const targetX = (mouse.x * 600);
@@ -565,16 +535,20 @@ function createTextureAtlas() {
     const ctx = canvas.getContext('2d');
     ctx.fillStyle = 'black'; ctx.fillRect(0, 0, ATLAS_SIZE, ATLAS_SIZE);
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.font = `${CHAR_SIZE * 0.85}px "Courier New", Courier, monospace`; ctx.fillStyle = 'white';
-    for (let i = 0; i < Math.min(currentChars.length, 64); i++) {
+    ctx.font = `${CHAR_SIZE * 0.85}px "Courier New", Courier, monospace`;
+    ctx.fillStyle = 'white';
+    const maxChars = COLS * Math.floor(ATLAS_SIZE / CHAR_SIZE); // ponytail: derived, not hardcoded
+    for (let i = 0; i < Math.min(currentChars.length, maxChars); i++) {
         const x = (i % COLS) * CHAR_SIZE + CHAR_SIZE / 2;
         const y = Math.floor(i / COLS) * CHAR_SIZE + CHAR_SIZE / 2;
         ctx.fillText(currentChars[i], x, y);
     }
     if (textureAtlas) textureAtlas.dispose();
     textureAtlas = new THREE.CanvasTexture(canvas);
-    textureAtlas.minFilter = THREE.NearestFilter;
-    textureAtlas.magFilter = THREE.NearestFilter;
+    textureAtlas.generateMipmaps = false;  // ponytail: mipmaps break atlas UV at non-native sizes
+    textureAtlas.minFilter = THREE.LinearFilter;
+    textureAtlas.magFilter = THREE.LinearFilter;
+    textureAtlas.needsUpdate = true;
     if (pointsObject) pointsObject.material.uniforms.atlas.value = textureAtlas;
 }
 
@@ -640,7 +614,6 @@ function setupUI() {
         const { key, value, config, isFinalChange } = e.detail;
         
         // Sync globals
-        window.renderMode = config.renderMode;
         currentChars = CHAR_SETS[config.charSet];
         mode = config.physicsMode;
         window.isFlowEnabled = config.flowEnabled;

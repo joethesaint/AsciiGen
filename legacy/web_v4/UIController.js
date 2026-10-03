@@ -2,8 +2,7 @@ class EngineUIController extends EventTarget {
     constructor() {
         super();
         this.config = {
-            renderMode: 'points',
-            charSet: 'default',
+            charSet: 'detailed',
             kernel: 'edges',
             physicsMode: 'grid',
             interactionRange: 150,
@@ -26,15 +25,6 @@ class EngineUIController extends EventTarget {
             toggleBtn.onclick = () => sidebar.classList.toggle('collapsed');
         }
 
-        // Render Modes
-        document.querySelectorAll('#render-modes .mode-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                this.updateButtonGroup('#render-modes', e.target);
-                this.setConfig('renderMode', e.target.getAttribute('data-render'));
-            });
-        });
-
-        // Character Sets
         document.querySelectorAll('#char-sets .mode-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 this.updateButtonGroup('#char-sets', e.target);

@@ -1,0 +1,46 @@
+# Publishes web_interface/ to GitHub Pages as a static site.
+# There is no build step: the page runs entirely in the visitor's browser
+# (Three.js from CDNs, rendering on their own GPU, quality picked per device).
+name: Deploy web build to Pages
+
+on:
+  push:
+    branches: [main, stable-pointgen-3d]
+    paths: ['web_interface/**', '.github/workflows/pages.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run engine unit tests
+        working-directory: web_interface
+        run: node --test tests/engine.test.js tests/device.test.js
+
+      - name: Stage site (drop dev-only files)
+        run: |
+          mkdir -p _site
+          cp -r web_interface/. _site/
+          rm -rf _site/tests _site/README.md _site/heart_data.txt
+          touch _site/.nojekyll
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4
