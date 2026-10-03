@@ -179,7 +179,7 @@
         sim.uRadius = config.radius / 100;
         sim.uStiffness = config.spring;
         sim.uMotion = { still: 0, drift: 1, vortex: 2 }[config.motion];
-        controls.autoRotate = config.orbit;
+        controls.autoRotate = config.orbit && !isFlat; // flat images swing instead (see swing())
 
         document.querySelectorAll('[data-for]').forEach((el) => { el.hidden = el.dataset.for !== config.render; });
         // The character set only matters when characters are on screen.
@@ -227,12 +227,41 @@
 
     // A flat image only reads from the front, so its orbit is kept within ±65° of head-on.
     // Models can be orbited all the way round.
+    // A flat image only reads from the front, so its orbit is locked to ±90°:
+    // edge-on at the limit, never round the back. (The plane is double-sided,
+    // so anything that does get past shows the image mirrored, never black.)
+    // Models can be orbited all the way round.
+    const FLAT_RANGE = THREE.MathUtils.degToRad(90);
+    let isFlat = false;
     function limitOrbit(flat) {
-        const range = flat ? THREE.MathUtils.degToRad(65) : Infinity;
+        isFlat = flat;
+        const range = flat ? FLAT_RANGE : Infinity;
         controls.minAzimuthAngle = -range;
         controls.maxAzimuthAngle = range;
-        controls.minPolarAngle = flat ? Math.PI / 2 - THREE.MathUtils.degToRad(65) : 0;
-        controls.maxPolarAngle = flat ? Math.PI / 2 + THREE.MathUtils.degToRad(65) : Math.PI;
+        controls.minPolarAngle = flat ? Math.PI / 2 - FLAT_RANGE : 0;
+        controls.maxPolarAngle = flat ? Math.PI / 2 + FLAT_RANGE : Math.PI;
+        applyConfig();
+    }
+
+    // Auto-orbit on a flat image swings like a pendulum between the two limits
+    // instead of stalling at one; a sine eases it at both ends. It picks up from
+    // wherever the camera is, and pauses while the user is dragging.
+    let swingPhase = null;
+    let userOrbiting = false;
+    controls.addEventListener('start', () => { userOrbiting = true; });
+    controls.addEventListener('end', () => { userOrbiting = false; swingPhase = null; });
+    const swingSpherical = new THREE.Spherical();
+    const swingOffset = new THREE.Vector3();
+    function swing(dt) {
+        if (!(config.orbit && isFlat) || userOrbiting) { if (!config.orbit) swingPhase = null; return; }
+        const amp = FLAT_RANGE * 0.96; // stop just short of perfectly edge-on, where the image vanishes
+        swingOffset.copy(camera.position).sub(controls.target);
+        swingSpherical.setFromVector3(swingOffset);
+        if (swingPhase === null) swingPhase = Math.asin(THREE.MathUtils.clamp(swingSpherical.theta / amp, -1, 1));
+        swingPhase += dt * 0.45; // about 14 s per full swing
+        swingSpherical.theta = amp * Math.sin(swingPhase);
+        swingOffset.setFromSpherical(swingSpherical);
+        camera.position.copy(controls.target).add(swingOffset);
     }
 
     // Reset is always reachable: the floating button, the sidebar button,
@@ -255,7 +284,19 @@
     }
     toggleBtn.addEventListener('click', () => setCollapsed(!sidebar.classList.contains('collapsed')));
     // Phones open on the artwork; the controls are one tap away.
-    if (matchMedia('(max-width: 600px)').matches) setCollapsed(true);
+    const isPhone = () => matchMedia('(max-width: 600px)').matches;
+    if (isPhone()) setCollapsed(true);
+    // On a phone, a tap on the artwork closes the controls. A drag (orbiting)
+    // does not. Reopening shows the sheet exactly as it was left: same scroll
+    // position, same settings, because closing only slides it away.
+    let tapStart = null;
+    renderer.domElement.addEventListener('pointerdown', (e) => { tapStart = { x: e.clientX, y: e.clientY, t: performance.now() }; });
+    renderer.domElement.addEventListener('pointerup', (e) => {
+        if (!tapStart || !isPhone() || sidebar.classList.contains('collapsed')) return;
+        const moved = Math.hypot(e.clientX - tapStart.x, e.clientY - tapStart.y);
+        if (moved < 8 && performance.now() - tapStart.t < 350) setCollapsed(true);
+        tapStart = null;
+    });
 
     // ---------- cursor ----------
     const pointer = new THREE.Vector2();
@@ -314,6 +355,7 @@
         if (++frames, now - fpsTime > 1000) { fpsEl.textContent = `${frames} FPS`; frames = 0; fpsTime = now; }
 
         checkFpsGuard(now);
+        swing(dt);
         controls.update();
         updateCursor(dt);
 

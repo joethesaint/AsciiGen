@@ -1,44 +1,49 @@
-# ASCII Art & Volumetric Pointillism Suite (v4.0)
+# AsciiGen · PointGen
 
-A high-performance creative coding suite that transforms static media into interactive 3D architectural limestone volumes. This version implements a Weight-Based design philosophy with surgical alignment of interactive elements.
+Turn an image or a 3D model (GLB) into **live ASCII art** or a **GPU particle cloud**,
+right in the browser.
 
-## 🏛 Flagship: PointGen (Architectural Rigor)
-Located in [`web_interface/`](./web_interface/), PointGen has transitioned into an **Architectural Point Cloud** engine.
+**Live:** https://joethesaint.github.io/AsciiGen/
 
-### Design Principles (Weight-Based)
-- **Neutral (Matte Obsidian)**: The primary canvas (`#0a0b0c`) provides a non-distractive depth.
-- **Primary (Architectural Limestone)**: All UI "Ink" is rendered in high-definition limestone tones (`#e6e6dc`).
-- **Tertiary (High-weight Vermilion)**: High-weight accents (`#ff3e00`) highlight the loudest interaction points.
-- **Glassmorphism**: UI containers feature 40px frosted blur with 0.4 opacity, maintaining a disciplined 4px corner radius.
+## What it does
 
-### Technical Innovations
-- **Surgical Centering**: Slider thumbs (asterisks) are perfectly bisected using `dominant-baseline: central` for zero-parallax interaction.
-- **Orbital Controls**: Full 3D camera navigation (Drag to Rotate, Scroll to Zoom).
-- **Ink-Only Layout**: Slider tracks are transparent, with the high-weight asterisk doing the heavy lifting.
+- **ASCII mode:** the scene is drawn as a true character grid that stays ASCII from any
+  camera angle. Glyph ramps are ordered by measured ink coverage. Mono or source colour,
+  optional edge glyphs `/ | \ -`.
+- **Particle mode:** up to ~400k particles with real physics on the GPU. They spring
+  home, scatter from the cursor, morph between sources, and can leave trails. GLBs are
+  sampled evenly over their surface with texture colour; images are sampled toward detail.
+- **Safe on any device:** quality (particle count, resolution, cell size) is picked from
+  the visitor's hardware, and steps down automatically if the first seconds stutter.
+- **Details:** thinking-orb loader in a random state per visit, spring-open Source menu,
+  liquid toggles, bottom-sheet controls on phones, images that swing like a pendulum
+  between ±90° on auto-orbit.
 
-## 🛠 Project Structure
-Organized for clarity and rapid development:
+Everything runs client-side: static files, Three.js from a CDN, no build step.
 
-- **[`web_interface/`](./web_interface/)**: The Orbital Architectural Engine (Three.js/GLSL).
-- **[`server/`](./server/)**: Python Flask Hub for 3D Depth extraction and metadata analysis.
-- **[`smart_ascii/`](./smart_ascii/README.md)**: Pro configuration-driven ASCII tool.
-- **[`legacy/`](./legacy/)**: Archived 1D and specialized pointillism tools.
-- **[`docs/`](./docs/)**: Process documentation and historical output logs.
+## Run locally
 
-## 🔌 Getting Started
-1. **Launch the Intelligence Hub**:
-   ```powershell
-   .\.venv\Scripts\python.exe server/app.py
-   ```
-2. **Launch the Engine**:
-   Open `http://127.0.0.1:5000/` in any modern browser.
-3. **Explore**:
-   The engine will **autoload** the default image and build a 3D limestone cloud.
+```bash
+cd web_interface
+python -m http.server 8765        # then open http://localhost:8765
+node --test tests/engine.test.js tests/device.test.js
+```
 
-## 🧪 Quality Assurance (TDD)
-- **Frontend TDD**: The `AsciiTests` suite (in `tests.js`) validates:
-  - Surgical Slider Centering (`y=12` central baseline check).
-  - Ink-only transparency health.
-  - 3D Orbital & Shader integrity.
+Pushing to `stable-pointgen-3d` (or `main`) runs the tests and deploys `web_interface/`
+to GitHub Pages.
 
-Enjoy the limestone nebula!
+## Repository
+
+| Path | What |
+|---|---|
+| [`web_interface/`](./web_interface/) | The app (engine, components, tests) |
+| [`docs/AGENTS.md`](./docs/AGENTS.md) | **Start here if you are an agent or a new contributor**: architecture, rules learned from bugs, environment gotchas |
+| [`docs/ideas/`](./docs/ideas/README.md) | Parked ideas with plans: dither ASCII, GIF export, formula particles, image→3D / Polyfork |
+| [`legacy/`](./legacy/) | Earlier engines, kept for reference |
+| [`server/`](./server/), [`smart_ascii/`](./smart_ascii/) | Python backend and CLI tool (not used by the current web page) |
+
+## Credits
+
+- [Three.js](https://threejs.org) (MIT)
+- Liquid toggle: ported from [Bencho](https://bencho.dev) (MIT)
+- Loader: Orb by [Libraries.dev](https://libraries.dev/orbs) (`thinking-orbs`, MIT © Jakub Antalik)
