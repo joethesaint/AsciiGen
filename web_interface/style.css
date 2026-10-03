@@ -796,3 +796,26 @@ body.sidebar-collapsed #reset-fab { left: 2.5rem; }
     letter-spacing: 0.08em;
     color: rgba(230, 230, 220, 0.6);
 }
+
+/* ---------- Liquid-metal mark after the title ----------
+   Chrome is a hard-banded grey gradient (bright, dark, bright, dark) clipped to the
+   glyphs; sliding it sideways rolls the highlight across like light on a moving
+   bead. The SVG ripple (#lm-liquid) adds the molten wobble. */
+header h1 .lm {
+    margin-left: 0.12em;
+    background: linear-gradient(100deg,
+        #5b5e62 0%, #f4f5f2 18%, #8d9196 30%, #2b2d30 42%,
+        #e9ebe6 55%, #7c8085 68%, #fdfdfb 80%, #4a4d51 100%);
+    background-size: 220% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    text-shadow: none;
+    filter: url(#lm-liquid) drop-shadow(0 0 6px rgba(230, 230, 220, 0.25));
+    animation: lm-roll 5.5s ease-in-out infinite alternate;
+}
+@keyframes lm-roll { from { background-position: 0% 50%; } to { background-position: 100% 50%; } }
+@media (prefers-reduced-motion: reduce) {
+    header h1 .lm { animation: none; filter: drop-shadow(0 0 6px rgba(230, 230, 220, 0.25)); }
+}

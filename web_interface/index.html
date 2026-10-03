@@ -7,7 +7,7 @@
     <link rel="icon" href="data:;base64,iVBORw0KGgo=">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap">
-    <link rel="stylesheet" href="style.css?v=5.7">
+    <link rel="stylesheet" href="style.css?v=5.8">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
@@ -32,7 +32,13 @@
                 <feGaussianBlur in="SourceGraphic" stdDeviation="7" result="smear" />
                 <feColorMatrix in="smear" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 20 -10" />
             </filter>
-        </defs>
+            <!-- Liquid metal: a slow turbulence ripple displacing the chrome glyphs. -->
+            <filter id="lm-liquid" x="-30%" y="-30%" width="160%" height="160%">
+                <feTurbulence type="fractalNoise" baseFrequency="0.035 0.06" numOctaves="2" seed="3" result="noise">
+                    <animate attributeName="baseFrequency" dur="9s" values="0.035 0.06;0.05 0.04;0.035 0.06" repeatCount="indefinite" />
+                </feTurbulence>
+                <feDisplacementMap in="SourceGraphic" in2="noise" scale="3" xChannelSelector="R" yChannelSelector="G" />
+            </filter>
     </svg>
 
     <button id="sidebar-toggle" class="glass" aria-label="Toggle controls">
@@ -43,7 +49,7 @@
 
     <div class="ui-overlay">
         <header>
-            <h1>Point<span>Gen</span></h1>
+            <h1>Point<span>Gen</span><span class="lm" aria-hidden="true">•°</span></h1>
             <div class="subtitle-container">
                 <p>ASCII &amp; particle engine v5.0</p>
 
@@ -176,15 +182,15 @@
         </div>
     </div>
 
-    <script src="engine/device.js?v=5.7"></script>
-    <script src="engine/glyphs.js?v=5.7"></script>
-    <script src="engine/sampler.js?v=5.7"></script>
-    <script src="engine/ascii-pass.js?v=5.7"></script>
-    <script src="engine/particles.js?v=5.7"></script>
-    <script src="engine/sources.js?v=5.7"></script>
-    <script src="components/liquid-toggle.js?v=5.7"></script>
-    <script src="components/morph-menu.js?v=5.7"></script>
-    <script src="app.js?v=5.7"></script>
-    <script type="module" src="components/thinking-orb.js?v=5.7"></script>
+    <script src="engine/device.js?v=5.8"></script>
+    <script src="engine/glyphs.js?v=5.8"></script>
+    <script src="engine/sampler.js?v=5.8"></script>
+    <script src="engine/ascii-pass.js?v=5.8"></script>
+    <script src="engine/particles.js?v=5.8"></script>
+    <script src="engine/sources.js?v=5.8"></script>
+    <script src="components/liquid-toggle.js?v=5.8"></script>
+    <script src="components/morph-menu.js?v=5.8"></script>
+    <script src="app.js?v=5.8"></script>
+    <script type="module" src="components/thinking-orb.js?v=5.8"></script>
 </body>
 </html>
