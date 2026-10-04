@@ -22,8 +22,21 @@
         count: tier.count, size: 10, force: 35, radius: 35, spring: 14, trails: false, orbit: false,
     };
 
+    // ---------- surviving a lost graphics context ----------
+    // Phones reclaim GPU memory from background tabs (and under pressure), which kills
+    // the WebGL context: the canvas turns white. We save the session, then reload.
+    const SAVE_KEY = 'pointgen.session';
+    let saved = null;
+    try { saved = JSON.parse(sessionStorage.getItem(SAVE_KEY) || 'null'); sessionStorage.removeItem(SAVE_KEY); } catch (_) { /* storage blocked */ }
+    if (saved && saved.config) Object.assign(config, saved.config);
+
+    // Keeping the previous frame (needed only for trails) costs extra GPU memory, which
+    // phones can't spare, so it's kept on desktop-class devices only.
+    const keepFrames = tier.name === 'high' && !matchMedia('(pointer: coarse)').matches;
+    if (!keepFrames) config.trails = false;
+
     // preserveDrawingBuffer keeps the last frame, which trails need.
-    const renderer = new THREE.WebGLRenderer({ antialias: tier.antialias, preserveDrawingBuffer: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: tier.antialias, preserveDrawingBuffer: keepFrames });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, tier.pixelRatio));
     renderer.outputEncoding = THREE.sRGBEncoding;
     renderer.autoClear = false;
@@ -212,7 +225,17 @@
         });
     });
     // Sliders start at the device-chosen values, not the HTML defaults.
-    function syncInputs() { SLIDERS.forEach((id) => { const el = document.getElementById(id); el.value = config[id]; paintFill(el); }); }
+    function syncInputs() {
+        SLIDERS.forEach((id) => { const el = document.getElementById(id); el.value = config[id]; paintFill(el); });
+        // Option groups and switches too, so a restored session shows its real state.
+        document.querySelectorAll('[data-group]').forEach((g) => {
+            g.querySelectorAll('.mode-btn').forEach((b) => b.classList.toggle('active', b.dataset.value === config[g.dataset.group]));
+        });
+        ['edges', 'invert', 'orbit', 'trails'].forEach((id) => {
+            const el = document.getElementById(id);
+            if (el.checked !== config[id]) { el.checked = config[id]; el.dispatchEvent(new Event('change')); }
+        });
+    }
     // Lights the rail from the start up to the asterisk.
     function paintFill(el) {
         el.style.setProperty('--fill', `${((el.value - el.min) / (el.max - el.min)) * 100}%`);
@@ -392,7 +415,30 @@
     resize();
     // Fonts change glyph shapes, so remeasure the ramp once the web font arrives.
     if (document.fonts) document.fonts.load('48px "JetBrains Mono"').then(rebuildAtlas, () => {});
-    load('images/3d_outline.glb', true);
+    if (!keepFrames) document.getElementById('trails').closest('.toggle-section').hidden = true;
+
+    const glLost = document.getElementById('gl-lost');
+    let lost = false;
+    function restart() {
+        try {
+            // Uploaded files live at blob: URLs that die with the page; samples can be reloaded.
+            const keepSource = source && !source.url.startsWith('blob:') ? source : null;
+            sessionStorage.setItem(SAVE_KEY, JSON.stringify({ config, source: keepSource }));
+        } catch (_) { /* reload anyway */ }
+        location.reload();
+    }
+    renderer.domElement.addEventListener('webglcontextlost', (e) => {
+        e.preventDefault(); // tells the browser we want the context back
+        lost = true;
+        glLost.hidden = false;
+        // If the browser does not hand it back soon, reload ourselves.
+        setTimeout(() => { if (lost && !document.hidden) restart(); }, 2500);
+    });
+    renderer.domElement.addEventListener('webglcontextrestored', restart);
+    document.addEventListener('visibilitychange', () => { if (lost && !document.hidden) restart(); });
+
+    const start = saved && saved.source ? saved.source : { url: 'images/3d_outline.glb', isModel: true };
+    load(start.url, start.isModel);
     requestAnimationFrame(frame);
 
     window.PointGen = { config, load, renderer, camera, debug, particles, device }; // console access while developing

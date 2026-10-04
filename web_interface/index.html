@@ -7,7 +7,7 @@
     <link rel="icon" href="data:;base64,iVBORw0KGgo=">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap">
-    <link rel="stylesheet" href="style.css?v=5.9">
+    <link rel="stylesheet" href="style.css?v=6.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
@@ -16,6 +16,11 @@
 </head>
 <body>
     <div id="canvas-holder"></div>
+
+    <!-- Shown when the device takes the graphics context away (see app.js). -->
+    <div id="gl-lost" class="loader" hidden role="status">
+        <p class="loader-label">Graphics paused by your device — restoring…</p>
+    </div>
 
     <!-- Loading: a thinking orb in a random state each time (components/thinking-orb.js). -->
     <div id="loader" class="loader" hidden>
@@ -189,15 +194,15 @@
         </div>
     </div>
 
-    <script src="engine/device.js?v=5.9"></script>
-    <script src="engine/glyphs.js?v=5.9"></script>
-    <script src="engine/sampler.js?v=5.9"></script>
-    <script src="engine/ascii-pass.js?v=5.9"></script>
-    <script src="engine/particles.js?v=5.9"></script>
-    <script src="engine/sources.js?v=5.9"></script>
-    <script src="components/liquid-toggle.js?v=5.9"></script>
-    <script src="components/morph-menu.js?v=5.9"></script>
-    <script src="app.js?v=5.9"></script>
-    <script type="module" src="components/thinking-orb.js?v=5.9"></script>
+    <script src="engine/device.js?v=6.0"></script>
+    <script src="engine/glyphs.js?v=6.0"></script>
+    <script src="engine/sampler.js?v=6.0"></script>
+    <script src="engine/ascii-pass.js?v=6.0"></script>
+    <script src="engine/particles.js?v=6.0"></script>
+    <script src="engine/sources.js?v=6.0"></script>
+    <script src="components/liquid-toggle.js?v=6.0"></script>
+    <script src="components/morph-menu.js?v=6.0"></script>
+    <script src="app.js?v=6.0"></script>
+    <script type="module" src="components/thinking-orb.js?v=6.0"></script>
 </body>
 </html>
