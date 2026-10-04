@@ -437,7 +437,9 @@
     renderer.domElement.addEventListener('webglcontextrestored', restart);
     document.addEventListener('visibilitychange', () => { if (lost && !document.hidden) restart(); });
 
-    const start = saved && saved.source ? saved.source : { url: 'images/3d_outline.glb', isModel: true };
+    // The bust GLB is 28.7 MB; phones and mid/low devices start on the 0.6 MB image instead.
+    const firstSource = keepFrames ? { url: 'images/3d_outline.glb', isModel: true } : { url: 'images/roman_bust.png', isModel: false };
+    const start = saved && saved.source ? saved.source : firstSource;
     load(start.url, start.isModel);
     requestAnimationFrame(frame);
 
