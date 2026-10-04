@@ -45,3 +45,26 @@ Add a backend only for work a browser can't do:
 Front end stays on GitHub Pages. API + Redis on a small host (Fly.io/Render/a VPS). The GPU
 worker runs on whichever machine has the GPU and pulls jobs from Redis, so it doesn't need
 to be publicly reachable.
+
+## Using the Python we already have
+
+Parked locally (not committed): `git stash list` → *"parked: backend cleanup (b64 weight
+map, 200px analyze, /status route, tests, pointism default)"*. `git stash pop` restores it.
+It makes `/analyze` return the edge map as base64 at 200×200, moves the health check to
+`/status`, drops `/sdf` (covered by `/morph/{shape}`), and updates the tests. It also
+switches the CLI default character set to `pointism`, which is a style choice to decide on.
+
+What's still worth keeping, and how it could earn its place:
+
+| Piece | What it does today | Useful for |
+|---|---|---|
+| `smart_ascii/` CLI (`engine.py`, `generate_variants.py`, `config.yaml`) | Image → **text** ASCII files; GitHub-profile art; batches of variants | Plain-text output the browser app doesn't make: README/profile banners, terminal art, `.txt` exports. Could back a "Download as text" button via an endpoint, or just stay a CLI |
+| `/text-to-cloud` | Text → point cloud | A "type a word" source for the particle engine (the browser could also do this with a 2D canvas) |
+| `/palette` | Dominant colours of an image | Auto-picking ink/paper colours for the dither modes (`ideas/02`) |
+| `/analyze` kernels (edges, sharpen, emboss, gaussian) | Pre-filtered weight maps | Superseded: the GPU does this per frame now. Keep only if a server pipeline needs it |
+| `/depth`, `/depth_mock_sim` | Depth estimation stub | The natural place for a real depth model (image → relief) if one is added: server/GPU work |
+| FastAPI app shell + tests | Routing, CORS, static serving | The base for the job-queue API above (image → 3D, long renders) |
+
+Priority if the backend comes back: 1) fix `requirements.txt` to FastAPI/uvicorn,
+2) pop the stash and run `pytest`, 3) add the job queue, with image → 3D as the first job.
+Until then the Python stays a **local tool**, not part of the live site.

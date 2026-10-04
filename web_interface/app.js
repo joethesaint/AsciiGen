@@ -307,7 +307,8 @@
     }
     toggleBtn.addEventListener('click', () => setCollapsed(!sidebar.classList.contains('collapsed')));
     // Phones open on the artwork; the controls are one tap away.
-    const isPhone = () => matchMedia('(max-width: 600px)').matches;
+    // Phones in either orientation: narrow (portrait) or short (landscape).
+    const isPhone = () => matchMedia('(max-width: 600px), (max-height: 520px)').matches;
     if (isPhone()) setCollapsed(true);
     // On a phone, a tap on the artwork closes the controls. A drag (orbiting)
     // does not. Reopening shows the sheet exactly as it was left: same scroll

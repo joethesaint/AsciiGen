@@ -822,3 +822,29 @@ header h1 .lm {
 
 /* Link to the standalone formula page; styled like the Reset view button above it. */
 .studies-link { display: block; text-align: center; text-decoration: none; color: var(--weight-primary); margin-bottom: 0.5rem; }
+
+/* ---------- Phones on their side (short screens) ----------
+   A 390px-tall landscape phone is wider than 600px, so it used to get the desktop
+   layout: the sidebar was squeezed to ~165px under the title. Here the controls
+   become a full-height side sheet, and the title moves out of their way. */
+@media (max-height: 520px) and (min-width: 601px) {
+    .ui-overlay { padding: 12px; }
+    header {
+        position: fixed; top: 12px; right: 12px; margin: 0;
+        text-align: right; pointer-events: none;
+    }
+    header h1 { font-size: 1.35rem; }
+    .subtitle-container { align-items: flex-end; }
+    .subtitle-container > p:first-child { display: none; } /* the tagline; stats stay */
+    .sidebar {
+        position: fixed; top: 12px; bottom: 12px; left: 12px;
+        width: 300px; height: auto; max-height: none;
+        padding: 16px;
+    }
+    .sidebar.collapsed { transform: translateX(calc(-100% - 24px)); }
+    #sidebar-toggle { top: 12px; left: 320px; width: 44px; height: 44px; }
+    #reset-fab { top: 64px; left: 320px; width: 44px; height: 44px; }
+    body.sidebar-collapsed #sidebar-toggle,
+    body.sidebar-collapsed #reset-fab { left: 12px; }
+    .mode-btn { min-height: 40px; }
+}
