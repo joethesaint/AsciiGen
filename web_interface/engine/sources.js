@@ -31,13 +31,12 @@
         return { data: ctx.getImageData(0, 0, w, h).data, width: w, height: h };
     }
 
-    async function fromImage(url, particleCount) {
-        const img = await loadImageElement(url);
+    function fromDrawable(img, particleCount, live = false) {
         const aspect = img.width / img.height;
         const w = aspect >= 1 ? 2 : 2 * aspect;
         const h = aspect >= 1 ? 2 / aspect : 2;
 
-        const texture = new THREE.Texture(img);
+        const texture = live ? new THREE.CanvasTexture(img) : new THREE.Texture(img);
         texture.encoding = THREE.sRGBEncoding;
         texture.needsUpdate = true;
         const object = new THREE.Mesh(
@@ -54,7 +53,18 @@
             positions[i * 3 + 1] = (0.5 - s.py[i] / px.height) * h;
             positions[i * 3 + 2] = (s.luma[i] - 0.5) * 0.15; // slight relief so orbiting shows depth
         }
-        return { kind: 'image', object, particles: { positions, colors: s.rgb, luma: s.luma } };
+        return {
+            kind: 'image', object, particles: { positions, colors: s.rgb, luma: s.luma },
+            tick: live ? () => { texture.needsUpdate = true; } : null,
+        };
+    }
+
+    async function fromImage(url, particleCount) {
+        return fromDrawable(await loadImageElement(url), particleCount);
+    }
+
+    function fromCanvas(canvas, particleCount) {
+        return fromDrawable(canvas, particleCount, true);
     }
 
     const texturePixels = new Map();
@@ -164,5 +174,5 @@
         });
     }
 
-    root.Sources = { fromImage, fromGLB };
+    root.Sources = { fromImage, fromCanvas, fromGLB };
 })(this);

@@ -7,7 +7,7 @@
     <link rel="icon" href="data:;base64,iVBORw0KGgo=">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap">
-    <link rel="stylesheet" href="style.css?v=6.2">
+    <link rel="stylesheet" href="style.css?v=6.3">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
@@ -92,6 +92,10 @@
                                 <svg class="morph-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20 4 12C-1 5 8 1 12 7c4-6 13-2 8 5z"/></svg>
                                 <span>Live heartbeat</span>
                             </button>
+                            <button type="button" class="morph-item" role="menuitem" data-orb data-close>
+                                <svg class="morph-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M4 12h16M12 4c4 4 4 12 0 16M12 4c-4 4-4 12 0 16"/></svg>
+                                <span>Live spinning orb</span>
+                            </button>
                             <!-- Polyfork free asset, hotlinked from their CDN: their terms allow use
                                  but not redistribution, so the file is never committed here. -->
                             <button type="button" class="morph-item" role="menuitem" data-sample="https://polyfork.dev/cdn/brass-service-bell-5677fb.glb" data-close>
@@ -102,6 +106,15 @@
                     </div>
                 </div>
                 <input type="file" id="file-input" accept="image/*,.glb,.gltf" hidden />
+            </div>
+
+            <div class="section">
+                <h3>Isometric studies</h3>
+                <div class="mode-selector" id="hairline-controls">
+                    <button class="mode-btn" type="button" data-hairline="terrain">Terrain</button>
+                    <button class="mode-btn" type="button" data-hairline="turntable">Turntable</button>
+                    <button class="mode-btn" type="button" data-hairline="phosphor">Phosphor</button>
+                </div>
             </div>
 
             <div class="section">
@@ -211,16 +224,23 @@
         </div>
     </div>
 
-    <script src="engine/device.js?v=6.2"></script>
+    <section id="hairline-studies" class="hairline-studies glass" hidden aria-label="Interactive isometric study">
+        <button id="hairline-close" class="hairline-close" type="button" aria-label="Close isometric study">×</button>
+        <div id="hairline-stage" hidden></div>
+        <p id="hairline-caption" class="hairline-caption"></p>
+    </section>
+
+    <script src="engine/device.js?v=6.3"></script>
     <script src="engine/glyphs.js?v=6.2"></script>
     <script src="engine/sampler.js?v=6.2"></script>
     <script src="engine/ascii-pass.js?v=6.2"></script>
     <script src="engine/particles.js?v=6.2"></script>
-    <script src="engine/sources.js?v=6.2"></script>
+    <script src="engine/sources.js?v=6.3"></script>
     <script src="components/liquid-toggle.js?v=6.2"></script>
     <script src="components/morph-menu.js?v=6.2"></script>
-    <script src="engine/heartbeat.js?v=6.2"></script>
-    <script src="app.js?v=6.2"></script>
-    <script type="module" src="components/thinking-orb.js?v=6.2"></script>
+    <script src="engine/heartbeat.js?v=6.3"></script>
+    <script src="app.js?v=6.3"></script>
+    <script type="module" src="components/thinking-orb.js?v=6.3"></script>
+    <script type="module" src="components/hairline-studies.js?v=6.3"></script>
 </body>
 </html>

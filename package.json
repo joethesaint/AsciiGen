@@ -1,0 +1,26 @@
+{
+  "name": "asciigen-work",
+  "version": "1.0.0",
+  "description": "",
+  "private": true,
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "node --test web_interface/tests/engine.test.js web_interface/tests/device.test.js",
+    "bundle:hairline": "mkdir -p web_interface/vendor && cp node_modules/@lucasmarkes/hairline/dist/index.js web_interface/vendor/hairline.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/joethesaint/AsciiGen.git"
+  },
+  "keywords": [],
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/joethesaint/AsciiGen/issues"
+  },
+  "homepage": "https://github.com/joethesaint/AsciiGen#readme",
+  "dependencies": {
+    "@lucasmarkes/hairline": "^0.2.0"
+  }
+}

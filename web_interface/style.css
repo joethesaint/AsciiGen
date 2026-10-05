@@ -823,6 +823,26 @@ header h1 .lm {
 /* Link to the standalone formula page; styled like the Reset view button above it. */
 .studies-link { display: block; text-align: center; text-decoration: none; color: var(--weight-primary); margin-bottom: 0.5rem; }
 
+/* Hairline studies sit above the renderer so their fine SVG lines stay sharp. */
+.hairline-studies {
+    position: fixed; right: max(20px, env(safe-area-inset-right)); top: 50%;
+    width: min(420px, calc(100vw - 40px)); padding: 14px;
+    transform: translateY(-50%); z-index: 20;
+    --hairline-plate: #0a0b0c;
+    --hairline-hi: #f2ede2;
+    --hairline-edge: #aeb8c3;
+    --hairline-mid: #68717d;
+    --hairline-lo: #252a31;
+}
+.hairline-close {
+    position: absolute; right: 10px; top: 6px; z-index: 1; border: 0;
+    background: transparent; color: var(--weight-primary); cursor: pointer; font-size: 24px;
+}
+.hairline-caption { color: var(--weight-secondary); font-size: 0.72rem; margin: 4px 8px 0; text-transform: capitalize; }
+@media (max-width: 600px) {
+    .hairline-studies { left: 16px; right: 16px; top: auto; bottom: 16px; width: auto; transform: none; }
+}
+
 /* ---------- Phones on their side (short screens) ----------
    A 390px-tall landscape phone is wider than 600px, so it used to get the desktop
    layout: the sidebar was squeezed to ~165px under the title. Here the controls

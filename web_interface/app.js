@@ -60,8 +60,10 @@
     particleScene.add(particles.points);
 
     const debug = { raw: false };
-    let source = null;      // { url, isModel }
+    let source = null;      // { url, isModel, live? }
     let sourceObject = null;
+    let sourceTick = null;
+    let sourceCleanup = null;
     const sourceScale = new THREE.Vector3(1, 1, 1);
     const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
     let heartbeatTime = 0;
@@ -103,7 +105,28 @@
     function hideLoader() { loaderEl.hidden = true; if (orb) { orb.stop(); orb = null; } }
 
     // ---------- source loading ----------
+    function replaceSource(result) {
+        if (sourceObject) sourceScene.remove(sourceObject);
+        sourceObject = result.object;
+        sourceTick = result.tick || null;
+        sourceScale.copy(sourceObject.scale);
+        sourceScene.add(sourceObject);
+        limitOrbit(result.kind === 'image');
+        const p = result.particles;
+        if (particlesOK) {
+            try { particles.setData(p.positions, p.colors, p.luma); }
+            catch (e) { console.error(e); disableParticles(); }
+        }
+    }
+
+    function clearLiveSource() {
+        sourceCleanup?.();
+        sourceCleanup = null;
+        sourceTick = null;
+    }
+
     async function load(url, isModel) {
+        clearLiveSource();
         source = { url, isModel };
         const t0 = performance.now();
         setStatus('');
@@ -112,16 +135,7 @@
             const side = ParticleSystem.sideFor(config.count * 1000);
             const count = side * side;
             const result = isModel ? await Sources.fromGLB(url, count) : await Sources.fromImage(url, count);
-            if (sourceObject) sourceScene.remove(sourceObject);
-            sourceObject = result.object;
-            sourceScale.copy(sourceObject.scale);
-            sourceScene.add(sourceObject);
-            limitOrbit(result.kind === 'image');
-            const p = result.particles;
-            if (particlesOK) {
-                try { particles.setData(p.positions, p.colors, p.luma); }
-                catch (e) { console.error(e); disableParticles(); }
-            }
+            replaceSource(result);
             statsEl.textContent = `${particlesOK ? (p.luma.length / 1000).toFixed(0) + 'k pts · ' : ''}${(performance.now() - t0).toFixed(0)} ms · ${tier.name} quality`;
             setStatus('');
             hideLoader();
@@ -131,6 +145,39 @@
             hideLoader();
             setStatus(`${e.message} Try another file.`);
         }
+    }
+
+    async function loadLiveOrb() {
+        if (!window.ThinkingOrb) {
+            setStatus('The live orb is still loading. Try again in a moment.');
+            return;
+        }
+        clearLiveSource();
+        source = { url: 'live:orb', isModel: false, live: true };
+        const t0 = performance.now();
+        setStatus('');
+        showLoader();
+        try {
+            const canvas = document.createElement('canvas');
+            const liveOrb = window.ThinkingOrb.mount(canvas, {
+                state: 'connecting', size: 360, dark: true, speed: 0.85,
+            });
+            const side = ParticleSystem.sideFor(config.count * 1000);
+            replaceSource(Sources.fromCanvas(canvas, side * side));
+            sourceCleanup = () => liveOrb.stop();
+            statsEl.textContent = `${particlesOK ? (side * side / 1000).toFixed(0) + 'k pts · ' : ''}${(performance.now() - t0).toFixed(0)} ms · ${tier.name} quality`;
+            hideLoader();
+            startFpsGuard();
+        } catch (e) {
+            console.error(e);
+            hideLoader();
+            setStatus('The live orb could not start. Try reloading the page.');
+        }
+    }
+
+    function reloadSource() {
+        if (!source) return;
+        return source.live ? loadLiveOrb() : load(source.url, source.isModel);
     }
 
     // Without float render targets the physics can't run, so offer ASCII only.
@@ -165,7 +212,7 @@
         syncInputs();
         resize();
         applyConfig();
-        if (source) load(source.url, source.isModel).then(() => {
+        if (source) reloadSource().then(() => {
             setStatus(`Lowered to ${tier.name} quality to keep things smooth. Raise Count if you want more.`);
         });
     }
@@ -186,6 +233,7 @@
             load(btn.dataset.sample, isModelName(btn.dataset.sample));
         });
     });
+    document.querySelector('[data-orb]').addEventListener('click', loadLiveOrb);
 
     // ---------- sidebar ----------
     function applyConfig() {
@@ -253,7 +301,7 @@
         el.style.setProperty('--fill', `${((el.value - el.min) / (el.max - el.min)) * 100}%`);
     }
     // Resampling is the slow part, so only do it once the slider is released.
-    document.getElementById('count').addEventListener('change', () => source && load(source.url, source.isModel));
+    document.getElementById('count').addEventListener('change', () => reloadSource());
 
     ['edges', 'invert', 'orbit', 'trails', 'heartbeat'].forEach((id) => {
         const el = document.getElementById(id);
@@ -398,6 +446,7 @@
         if (!document.hidden) heartbeatTime += dt;
         const pulse = Heartbeat.scaleAt(heartbeatTime, config.bpm, config.heartbeat, reducedMotion.matches);
         if (sourceObject) sourceObject.scale.copy(sourceScale).multiplyScalar(pulse);
+        sourceTick?.();
         particles.points.scale.setScalar(pulse);
         updateCursor(dt);
 
@@ -422,6 +471,12 @@
     if (!particlesOK) disableParticles();
     console.info(`PointGen: ${tier.name} quality`, device.reasons.length ? `(${device.reasons.join(', ')})` : '');
     new MorphMenu(document.getElementById('source-menu'));
+    document.querySelectorAll('[data-hairline]').forEach((button) => {
+        button.addEventListener('click', () => {
+            window.HairlineStudies?.mount(button.dataset.hairline);
+        });
+    });
+    document.getElementById('hairline-close').addEventListener('click', () => window.HairlineStudies?.close());
     // The upload row is a <label for>; give it the keyboard activation a button would have.
     document.querySelector('label.morph-item[for="file-input"]').addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); document.getElementById('file-input').click(); }
