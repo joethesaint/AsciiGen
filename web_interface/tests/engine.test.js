@@ -56,3 +56,28 @@ test('mulberry32 is deterministic', () => {
     const a = mulberry32(5), b = mulberry32(5);
     for (let i = 0; i < 10; i++) assert.strictEqual(a(), b());
 });
+
+const { scaleAt } = require('../engine/heartbeat.js');
+
+test('heartbeat has two bounded beats and a resting interval at every tempo', () => {
+    for (const bpm of [40, 72, 160]) {
+        const period = 60 / bpm;
+        const primary = scaleAt(period * 0.135, bpm);
+        const secondary = scaleAt(period * 0.405, bpm);
+        assert.ok(primary > secondary && secondary > 1);
+        assert.strictEqual(scaleAt(period * 0.8, bpm), 1);
+        for (let i = 0; i <= 1000; i++) {
+            const t = period * i / 1000;
+            const scale = scaleAt(t, bpm);
+            assert.ok(scale >= 1 && scale <= 1.096);
+            assert.ok(Math.abs(scale - scaleAt(t + period, bpm)) < 1e-12);
+        }
+    }
+});
+
+test('heartbeat respects off and reduced motion and recovers from invalid time', () => {
+    assert.strictEqual(scaleAt(0.1125, 72, false), 1);
+    assert.strictEqual(scaleAt(0.1125, 72, true, true), 1);
+    assert.strictEqual(scaleAt(NaN), 1);
+    assert.ok(Number.isFinite(scaleAt(1, NaN)));
+});

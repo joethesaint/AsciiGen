@@ -19,6 +19,7 @@
     const config = {
         render: 'ascii', glyphs: 'classic', color: 'mono', sprite: 'dots', motion: 'still',
         cell: tier.cell, contrast: 130, edges: false, invert: false,
+        heartbeat: false, bpm: 72,
         count: tier.count, size: 10, force: 35, radius: 35, spring: 14, trails: false, orbit: false,
     };
 
@@ -61,6 +62,9 @@
     const debug = { raw: false };
     let source = null;      // { url, isModel }
     let sourceObject = null;
+    const sourceScale = new THREE.Vector3(1, 1, 1);
+    const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+    let heartbeatTime = 0;
     let asciiOpacity = 1;   // eased toward the target for the active mode
     let particleOpacity = 0;
 
@@ -110,6 +114,7 @@
             const result = isModel ? await Sources.fromGLB(url, count) : await Sources.fromImage(url, count);
             if (sourceObject) sourceScene.remove(sourceObject);
             sourceObject = result.object;
+            sourceScale.copy(sourceObject.scale);
             sourceScene.add(sourceObject);
             limitOrbit(result.kind === 'image');
             const p = result.particles;
@@ -172,7 +177,14 @@
         if (file) load(URL.createObjectURL(file), isModelName(file.name));
     });
     document.querySelectorAll('[data-sample]').forEach((btn) => {
-        btn.addEventListener('click', () => load(btn.dataset.sample, isModelName(btn.dataset.sample)));
+        btn.addEventListener('click', () => {
+            if (btn.dataset.heartbeat !== undefined) {
+                config.heartbeat = true;
+                syncInputs();
+                applyConfig();
+            }
+            load(btn.dataset.sample, isModelName(btn.dataset.sample));
+        });
     });
 
     // ---------- sidebar ----------
@@ -214,7 +226,7 @@
         });
     });
 
-    const SLIDERS = ['cell', 'contrast', 'size', 'force', 'radius', 'spring', 'count'];
+    const SLIDERS = ['cell', 'contrast', 'size', 'force', 'radius', 'spring', 'count', 'bpm'];
     SLIDERS.forEach((id) => {
         const el = document.getElementById(id);
         el.addEventListener('input', () => {
@@ -231,7 +243,7 @@
         document.querySelectorAll('[data-group]').forEach((g) => {
             g.querySelectorAll('.mode-btn').forEach((b) => b.classList.toggle('active', b.dataset.value === config[g.dataset.group]));
         });
-        ['edges', 'invert', 'orbit', 'trails'].forEach((id) => {
+        ['edges', 'invert', 'orbit', 'trails', 'heartbeat'].forEach((id) => {
             const el = document.getElementById(id);
             if (el.checked !== config[id]) { el.checked = config[id]; el.dispatchEvent(new Event('change')); }
         });
@@ -243,7 +255,7 @@
     // Resampling is the slow part, so only do it once the slider is released.
     document.getElementById('count').addEventListener('change', () => source && load(source.url, source.isModel));
 
-    ['edges', 'invert', 'orbit', 'trails'].forEach((id) => {
+    ['edges', 'invert', 'orbit', 'trails', 'heartbeat'].forEach((id) => {
         const el = document.getElementById(id);
         el.addEventListener('change', () => { config[id] = el.checked; applyConfig(); });
     });
@@ -345,6 +357,8 @@
         cursorPlane.setFromNormalAndCoplanarPoint(normal, controls.target);
         raycaster.setFromCamera(pointer, camera);
         if (raycaster.ray.intersectPlane(cursorPlane, cursorHit)) {
+            // Physics positions stay unscaled; map the pointer back into that space.
+            cursorHit.divideScalar(particles.points.scale.x);
             prevCursor.copy(u.uCursor);
             u.uCursor.lerp(cursorHit, 1 - Math.exp(-dt * 18));
             // Cursor velocity lets a quick swipe drag particles along with it.
@@ -381,6 +395,10 @@
         checkFpsGuard(now);
         swing(dt);
         controls.update();
+        if (!document.hidden) heartbeatTime += dt;
+        const pulse = Heartbeat.scaleAt(heartbeatTime, config.bpm, config.heartbeat, reducedMotion.matches);
+        if (sourceObject) sourceObject.scale.copy(sourceScale).multiplyScalar(pulse);
+        particles.points.scale.setScalar(pulse);
         updateCursor(dt);
 
         const wantAscii = config.render === 'ascii';
@@ -409,7 +427,7 @@
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); document.getElementById('file-input').click(); }
     });
     // Sidebar switches use the Liquid toggle; the checkboxes stay as the source of truth.
-    ['edges', 'invert', 'trails', 'orbit'].forEach((id) => LiquidToggle.enhance(document.getElementById(id)));
+    ['edges', 'invert', 'trails', 'orbit', 'heartbeat'].forEach((id) => LiquidToggle.enhance(document.getElementById(id)));
     rebuildAtlas();
     syncInputs();
     applyConfig();

@@ -7,7 +7,7 @@
     <link rel="icon" href="data:;base64,iVBORw0KGgo=">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap">
-    <link rel="stylesheet" href="style.css?v=6.1">
+    <link rel="stylesheet" href="style.css?v=6.2">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
@@ -87,6 +87,10 @@
                             <button type="button" class="morph-item" role="menuitem" data-sample="images/roman_bust.png" data-close>
                                 <svg class="morph-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m20.5 16-5-5-8 8.5"/></svg>
                                 <span>Sample image · bust</span>
+                            </button>
+                            <button type="button" class="morph-item" role="menuitem" data-sample="images/heart.jpg" data-heartbeat data-close>
+                                <svg class="morph-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20 4 12C-1 5 8 1 12 7c4-6 13-2 8 5z"/></svg>
+                                <span>Live heartbeat</span>
                             </button>
                             <!-- Polyfork free asset, hotlinked from their CDN: their terms allow use
                                  but not redistribution, so the file is never committed here. -->
@@ -172,6 +176,19 @@
                 </div>
             </div>
 
+            <div class="section">
+                <h3>Heartbeat</h3>
+                <div class="toggle-section">
+                    <label class="switch-label"><span>Pulse source</span>
+                        <div class="switch"><input type="checkbox" id="heartbeat"><span class="slider round"></span></div>
+                    </label>
+                </div>
+                <div class="control-item">
+                    <div class="label-row"><label for="bpm">Beats per minute</label><span class="val-display" data-out="bpm"></span></div>
+                    <input type="range" id="bpm" min="40" max="160" step="1" value="72" class="asterisk-slider">
+                </div>
+            </div>
+
             <div class="section" id="charset-section">
                 <h3>Character set</h3>
                 <div class="mode-selector" data-group="glyphs">
@@ -194,15 +211,16 @@
         </div>
     </div>
 
-    <script src="engine/device.js?v=6.1"></script>
-    <script src="engine/glyphs.js?v=6.1"></script>
-    <script src="engine/sampler.js?v=6.1"></script>
-    <script src="engine/ascii-pass.js?v=6.1"></script>
-    <script src="engine/particles.js?v=6.1"></script>
-    <script src="engine/sources.js?v=6.1"></script>
-    <script src="components/liquid-toggle.js?v=6.1"></script>
-    <script src="components/morph-menu.js?v=6.1"></script>
-    <script src="app.js?v=6.1"></script>
-    <script type="module" src="components/thinking-orb.js?v=6.1"></script>
+    <script src="engine/device.js?v=6.2"></script>
+    <script src="engine/glyphs.js?v=6.2"></script>
+    <script src="engine/sampler.js?v=6.2"></script>
+    <script src="engine/ascii-pass.js?v=6.2"></script>
+    <script src="engine/particles.js?v=6.2"></script>
+    <script src="engine/sources.js?v=6.2"></script>
+    <script src="components/liquid-toggle.js?v=6.2"></script>
+    <script src="components/morph-menu.js?v=6.2"></script>
+    <script src="engine/heartbeat.js?v=6.2"></script>
+    <script src="app.js?v=6.2"></script>
+    <script type="module" src="components/thinking-orb.js?v=6.2"></script>
 </body>
 </html>
