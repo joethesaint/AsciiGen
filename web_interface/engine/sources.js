@@ -63,6 +63,10 @@
         return fromDrawable(await loadImageElement(url), particleCount);
     }
 
+    function fromImageElement(image, particleCount) {
+        return fromDrawable(image, particleCount);
+    }
+
     function fromCanvas(canvas, particleCount) {
         return fromDrawable(canvas, particleCount, true);
     }
@@ -174,5 +178,5 @@
         });
     }
 
-    root.Sources = { fromImage, fromCanvas, fromGLB };
+    root.Sources = { fromImage, fromImageElement, fromCanvas, fromGLB };
 })(this);

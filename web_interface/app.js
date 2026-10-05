@@ -175,9 +175,35 @@
         }
     }
 
+    async function loadHairlineStudy(name) {
+        if (!window.HairlineStudies) {
+            setStatus('The isometric studies are still loading. Try again in a moment.');
+            return;
+        }
+        clearLiveSource();
+        source = { url: `hairline:${name}`, isModel: false, hairline: name };
+        const t0 = performance.now();
+        setStatus('');
+        showLoader();
+        try {
+            const side = ParticleSystem.sideFor(config.count * 1000);
+            const image = await window.HairlineStudies.createSource(name);
+            replaceSource(Sources.fromImageElement(image, side * side));
+            statsEl.textContent = `${particlesOK ? (side * side / 1000).toFixed(0) + 'k pts · ' : ''}${(performance.now() - t0).toFixed(0)} ms · ${tier.name} quality`;
+            hideLoader();
+            startFpsGuard();
+        } catch (e) {
+            console.error(e);
+            hideLoader();
+            setStatus(e.message);
+        }
+    }
+
     function reloadSource() {
         if (!source) return;
-        return source.live ? loadLiveOrb() : load(source.url, source.isModel);
+        if (source.live) return loadLiveOrb();
+        if (source.hairline) return loadHairlineStudy(source.hairline);
+        return load(source.url, source.isModel);
     }
 
     // Without float render targets the physics can't run, so offer ASCII only.
@@ -473,10 +499,9 @@
     new MorphMenu(document.getElementById('source-menu'));
     document.querySelectorAll('[data-hairline]').forEach((button) => {
         button.addEventListener('click', () => {
-            window.HairlineStudies?.mount(button.dataset.hairline);
+            loadHairlineStudy(button.dataset.hairline);
         });
     });
-    document.getElementById('hairline-close').addEventListener('click', () => window.HairlineStudies?.close());
     // The upload row is a <label for>; give it the keyboard activation a button would have.
     document.querySelector('label.morph-item[for="file-input"]').addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); document.getElementById('file-input').click(); }
